@@ -46,3 +46,27 @@ CONTEXT_RESTORATION_PROMPT.md
 Data_Preprocessing_Decisions.md
 ML Model/FEATURE_ENGINEERING_PLAN.md
 FRONTEND_CRITICAL_REMINDER.md
+
+Frontend_UI
+
+# Node.js / React / Vite
+node_modules/
+dist/
+build/
+.cache/
+*.local
+
+# Frontend dependency lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Backend
+backend/__pycache__/
+backend/.env
+backend/venv/
+backend/.pytest_cache/
+
+README.md
+react.svg
+vite.svg
