@@ -1,0 +1,84 @@
+{
+  "chart": {
+    "title": "Share of CO₂ emissions covered by a carbon price",
+    "subtitle": "Carbon dioxide emissions are included in this figure if they are covered by a carbon tax or trading system.",
+    "citation": "Dolphin and Merkle (2024)",
+    "originalChartUrl": "https://ourworldindata.org/grapher/carbon-tax-trading-coverage?v=1&csvType=full&useColumnShortNames=false",
+    "selection": [
+      "World"
+    ]
+  },
+  "columns": {
+    "CO₂ emissions covered by a carbon tax or an ETS as a share of the country's CO₂ emissions": {
+      "titleShort": "Covered by a carbon tax or an emissions trading system",
+      "titleLong": "Covered by a carbon tax or an emissions trading system",
+      "descriptionKey": [
+        "This data primarily focuses on economic instruments targeting carbon dioxide (CO₂) emissions.",
+        "In some cases these instruments also cover other greenhouse gases. However, any pricing mechanisms that specifically target non-CO₂ gases (such as methane or nitrous oxide) are not included.",
+        "A country is considered to have a carbon tax or emissions trading system if at least one IPCC sector or gas is covered by the instrument. These instruments do not need to cover all sectors within the economy for this to apply.",
+        "Only countries with a carbon tax at the national level are included.",
+        "For each country, researchers calculate an emissions-weighted carbon price for the economy. To do this, they rely on two metrics:\n- Carbon prices applied at the sectoral level (e.g. electricity, or road transport).\n- Each sector's contribution to a country's CO₂ emissions (e.g. what percentage of a country's emissions come from electricity, or road transport).\nThey then weight each sector's carbon price by the relevant sector's contribution to CO₂ emissions, and aggregate these figures to get an economy-wide weighted carbon price.",
+        "A full technical note on the methodology is provided by the authors [in this report](https://www.rff.org/publications/working-papers/emissions-weighted-carbon-price-sources-and-methods/)."
+      ],
+      "shortUnit": "%",
+      "unit": "%",
+      "timespan": "1989-2024",
+      "type": "Numeric",
+      "owidVariableId": 1039965,
+      "shortName": "co2_with_tax_or_ets_as_share_of_co2",
+      "lastUpdated": "2025-06-02",
+      "nextUpdate": "2026-06-02",
+      "citationShort": "Dolphin and Merkle (2024) – with minor processing by Our World in Data",
+      "citationLong": "Dolphin and Merkle (2024) – with minor processing by Our World in Data. “Covered by a carbon tax or an emissions trading system” [dataset]. Resources for the Future, “Emissions-weighted Carbon Price” [original data].",
+      "fullMetadata": "https://api.ourworldindata.org/v1/indicators/1039965.metadata.json"
+    },
+    "CO₂ emissions covered by a carbon tax as a share of the country's CO₂ emissions": {
+      "titleShort": "Covered by a carbon tax",
+      "titleLong": "Covered by a carbon tax",
+      "descriptionKey": [
+        "This data primarily focuses on economic instruments targeting carbon dioxide (CO₂) emissions.",
+        "In some cases these instruments also cover other greenhouse gases. However, any pricing mechanisms that specifically target non-CO₂ gases (such as methane or nitrous oxide) are not included.",
+        "A country is considered to have a carbon tax or emissions trading system if at least one IPCC sector or gas is covered by the instrument. These instruments do not need to cover all sectors within the economy for this to apply.",
+        "Only countries with a carbon tax at the national level are included.",
+        "For each country, researchers calculate an emissions-weighted carbon price for the economy. To do this, they rely on two metrics:\n- Carbon prices applied at the sectoral level (e.g. electricity, or road transport).\n- Each sector's contribution to a country's CO₂ emissions (e.g. what percentage of a country's emissions come from electricity, or road transport).\nThey then weight each sector's carbon price by the relevant sector's contribution to CO₂ emissions, and aggregate these figures to get an economy-wide weighted carbon price.",
+        "A full technical note on the methodology is provided by the authors [in this report](https://www.rff.org/publications/working-papers/emissions-weighted-carbon-price-sources-and-methods/)."
+      ],
+      "shortUnit": "%",
+      "unit": "%",
+      "timespan": "1989-2024",
+      "type": "Numeric",
+      "owidVariableId": 1039961,
+      "shortName": "co2_with_tax_as_share_of_co2",
+      "lastUpdated": "2025-06-02",
+      "nextUpdate": "2026-06-02",
+      "citationShort": "Dolphin and Merkle (2024) – with minor processing by Our World in Data",
+      "citationLong": "Dolphin and Merkle (2024) – with minor processing by Our World in Data. “Covered by a carbon tax” [dataset]. Resources for the Future, “Emissions-weighted Carbon Price” [original data].",
+      "fullMetadata": "https://api.ourworldindata.org/v1/indicators/1039961.metadata.json"
+    },
+    "CO₂ emissions covered by an ETS as a share of the country's CO₂ emissions": {
+      "titleShort": "Covered by an emissions trading system",
+      "titleLong": "Covered by an emissions trading system",
+      "descriptionKey": [
+        "This data primarily focuses on economic instruments targeting carbon dioxide (CO₂) emissions.",
+        "In some cases these instruments also cover other greenhouse gases. However, any pricing mechanisms that specifically target non-CO₂ gases (such as methane or nitrous oxide) are not included.",
+        "A country is considered to have a carbon tax or emissions trading system if at least one IPCC sector or gas is covered by the instrument. These instruments do not need to cover all sectors within the economy for this to apply.",
+        "Only countries with a carbon tax at the national level are included.",
+        "For each country, researchers calculate an emissions-weighted carbon price for the economy. To do this, they rely on two metrics:\n- Carbon prices applied at the sectoral level (e.g. electricity, or road transport).\n- Each sector's contribution to a country's CO₂ emissions (e.g. what percentage of a country's emissions come from electricity, or road transport).\nThey then weight each sector's carbon price by the relevant sector's contribution to CO₂ emissions, and aggregate these figures to get an economy-wide weighted carbon price.",
+        "A full technical note on the methodology is provided by the authors [in this report](https://www.rff.org/publications/working-papers/emissions-weighted-carbon-price-sources-and-methods/)."
+      ],
+      "shortUnit": "%",
+      "unit": "%",
+      "timespan": "1989-2024",
+      "type": "Numeric",
+      "owidVariableId": 1039957,
+      "shortName": "co2_with_ets_as_share_of_co2",
+      "lastUpdated": "2025-06-02",
+      "nextUpdate": "2026-06-02",
+      "citationShort": "Dolphin and Merkle (2024) – with minor processing by Our World in Data",
+      "citationLong": "Dolphin and Merkle (2024) – with minor processing by Our World in Data. “Covered by an emissions trading system” [dataset]. Resources for the Future, “Emissions-weighted Carbon Price” [original data].",
+      "fullMetadata": "https://api.ourworldindata.org/v1/indicators/1039957.metadata.json"
+    }
+  },
+  "dateDownloaded": "2025-12-28",
+  "activeFilters": {}
+}

@@ -46,8 +46,9 @@ CONTEXT_RESTORATION_PROMPT.md
 Data_Preprocessing_Decisions.md
 ML Model/FEATURE_ENGINEERING_PLAN.md
 FRONTEND_CRITICAL_REMINDER.md
-
+BACKEND_COMPLETE_README.md
 Frontend_UI
+frontend/GUIDANCE_FOR_FRONTEND.md
 
 # Node.js / React / Vite
 node_modules/
@@ -70,3 +71,6 @@ backend/.pytest_cache/
 README.md
 react.svg
 vite.svg
+
+EcoImpact-Frontend-main
+nul
