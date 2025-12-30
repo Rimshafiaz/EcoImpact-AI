@@ -79,6 +79,23 @@ INCOME_LEVELS = {
     ]
 }
 
+def get_region_for_ml(region, income_group):
+    training_regions = [
+        'Europe & Central Asia',
+        'East Asia & Pacific',
+        'North America',
+        'Latin America & Caribbean',
+        'Sub-Saharan Africa'
+    ]
+    
+    if region in training_regions:
+        return region
+    
+    if region == 'Middle East & North Africa':
+        return 'East Asia & Pacific'
+    
+    return 'East Asia & Pacific'
+
 def get_region(country):
     for region, countries in WORLD_BANK_REGIONS.items():
         if country in countries:

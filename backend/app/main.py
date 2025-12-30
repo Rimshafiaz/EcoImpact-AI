@@ -6,10 +6,17 @@ from .predict import load_models, predict_revenue, predict_success
 from .calculations import calculate_co2_impact, calculate_equivalencies
 from .context import generate_context, load_training_data
 from .services import load_all_data, get_country_features, get_available_countries, get_country_total_co2
-import numpy as np
+from .auth_routes import router as auth_router
+from .database import init_db
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    try:
+        init_db()
+    except Exception as e:
+        print(f"Database initialization warning: {e}")
+        print("Make sure DATABASE_URL is set in .env file")
+    
     load_models()
     load_all_data()
     load_training_data()
@@ -24,6 +31,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(auth_router)
 
 @app.get("/")
 def read_root():
@@ -71,8 +80,19 @@ def predict_all(request: PredictionRequest):
         )
 
         if co2_impact is None:
-            raise HTTPException(400, f"CO2 data not available for {request.country}")
-
+            co2_impact = {
+                'total_country_co2_mt': 0.0,
+                'co2_covered_mt': 0.0,
+                'co2_covered_percent': request.coverage_percent,
+                'co2_uncovered_mt': 0.0,
+                'co2_uncovered_percent': 100 - request.coverage_percent,
+                'co2_potentially_reduced_mt': 0.0,
+                'co2_covered_per_capita_tonnes': 0.0,
+                'reduction_rate_used': 0.0,
+                'carbon_price_usd': request.carbon_price_usd,
+                'disclaimer': f'CO2 emissions data not available for {request.country}. Revenue and risk predictions are still provided.'
+            }
+        
         equivalencies = calculate_equivalencies(co2_impact['co2_potentially_reduced_mt'])
 
         abolishment_risk, risk_category, confidence = predict_success(
@@ -84,10 +104,13 @@ def predict_all(request: PredictionRequest):
             gdp
         )
 
-        risk_multiplier = 1 - (abolishment_risk / 100) * 0.5
-        risk_adjusted_value = predicted_revenue * risk_multiplier
-
-        ci_margin = predicted_revenue * 0.11
+        if risk_category == "Low Risk":
+            risk_adjusted_value = predicted_revenue
+        else:
+            success_probability = 1 - (abolishment_risk / 100)
+            risk_adjusted_value = max(0.0, predicted_revenue * success_probability)
+        
+        risk_adjusted_value = max(0.0, risk_adjusted_value) if risk_adjusted_value is not None else 0.0
 
         context = generate_context(
             request.country,
@@ -99,35 +122,94 @@ def predict_all(request: PredictionRequest):
             risk_category,
             region
         )
+        
+        if not context.get('recommendation') or not isinstance(context['recommendation'], str):
+            context['recommendation'] = 'Policy assessment available.'
+        if not context.get('similar_policies') or not isinstance(context['similar_policies'], list) or len(context['similar_policies']) == 0:
+            context['similar_policies'] = ['Historical policy data analysis available.']
+        if not context.get('key_risks') or not isinstance(context['key_risks'], list) or len(context['key_risks']) == 0:
+            context['key_risks'] = ['Standard implementation considerations apply.']
+        if not context.get('success_context') or not context['success_context'].get('context_message') or not isinstance(context['success_context']['context_message'], str):
+            context['success_context'] = {
+                'context_message': f'Risk assessment for {request.country} based on regional patterns and economic factors.',
+                'recommendation': context.get('recommendation', 'Policy assessment available.'),
+                'has_historical_data': False,
+                'confidence': 'Medium'
+            }
 
         projections = []
-        for year_offset in range(request.projection_years):
+        cumulative_co2_reduced = 0.0
+        cumulative_revenue = 0.0
+        base_year_co2 = co2_impact['total_country_co2_mt'] if co2_impact else 0.0
+        
+        projection_years = max(1, min(20, request.projection_years))
+        previous_revenue = predicted_revenue
+        
+        gdp_growth_rate = 0.03
+        population_growth_rate = 0.01
+        fossil_fuel_decline_rate = 0.005
+        min_revenue_growth_rate = 0.015
+        
+        for year_offset in range(projection_years):
             future_year = request.year + year_offset
 
-            try:
-                future_features = get_country_features(request.country, future_year)
-            except ValueError:
+            if year_offset == 0:
                 future_features = country_features
+            else:
+                future_features = {
+                    'fossil_fuel_pct': max(0, country_features['fossil_fuel_pct'] - (fossil_fuel_decline_rate * year_offset * 100)),
+                    'population': country_features['population'] * ((1 + population_growth_rate) ** year_offset),
+                    'gdp': country_features['gdp'] * ((1 + gdp_growth_rate) ** year_offset),
+                    'region': country_features['region'],
+                    'income_group': country_features['income_group']
+                }
 
-            future_revenue = predict_revenue(
-                request.country,
-                request.policy_type,
-                request.carbon_price_usd,
-                request.coverage_percent,
-                future_year,
-                future_features['fossil_fuel_pct'],
-                future_features['population'],
-                future_features['gdp']
-            )
+            carbon_price = request.carbon_price_usd
+
+            if year_offset == 0:
+                future_revenue = predicted_revenue
+            else:
+                future_revenue = predict_revenue(
+                    request.country,
+                    request.policy_type,
+                    carbon_price,
+                    request.coverage_percent,
+                    future_year,
+                    future_features['fossil_fuel_pct'],
+                    future_features['population'],
+                    future_features['gdp']
+                )
+                
+                if future_revenue <= 0:
+                    from .predict import calculate_revenue_formula
+                    future_revenue = calculate_revenue_formula(carbon_price, request.coverage_percent, request.country, future_year)
+                
+                min_expected_revenue = previous_revenue * (1 + min_revenue_growth_rate)
+                if future_revenue < min_expected_revenue:
+                    future_revenue = min_expected_revenue
+                
+                max_reasonable_multiplier = 3.0
+                if future_revenue > previous_revenue * max_reasonable_multiplier:
+                    future_revenue = previous_revenue * max_reasonable_multiplier
+            
+            previous_revenue = future_revenue
 
             future_co2 = calculate_co2_impact(
                 request.coverage_percent,
                 request.country,
                 future_year,
-                request.carbon_price_usd
+                carbon_price
             )
+            
+            if future_co2 is None:
+                future_co2 = {
+                    'total_country_co2_mt': 0.0,
+                    'co2_covered_mt': 0.0,
+                    'co2_potentially_reduced_mt': 0.0,
+                    'co2_covered_per_capita_tonnes': 0.0
+                }
 
-            future_abolishment, future_risk, _ = predict_success(
+            future_abolishment, _, _ = predict_success(
                 request.country,
                 request.policy_type,
                 request.coverage_percent,
@@ -136,13 +218,45 @@ def predict_all(request: PredictionRequest):
                 future_features['gdp']
             )
 
-            projections.append({
-                'year': future_year,
-                'revenue_million': round(future_revenue, 2),
-                'co2_reduced_mt': round(future_co2['co2_potentially_reduced_mt'], 2) if future_co2 else 0,
-                'abolishment_risk_percent': round(future_abolishment, 1),
-                'risk_category': future_risk
-            })
+            risk_escalation_rate = 0.005
+            time_escalated_risk = min(100.0, future_abolishment + (risk_escalation_rate * 100 * year_offset))
+
+            if time_escalated_risk < 35:
+                escalated_risk_category = "Low Risk"
+            elif time_escalated_risk > 65:
+                escalated_risk_category = "High Risk"
+            else:
+                escalated_risk_category = "At Risk"
+
+            if escalated_risk_category == "Low Risk":
+                future_risk_adjusted_value = future_revenue
+            else:
+                success_probability = 1 - (time_escalated_risk / 100)
+                future_risk_adjusted_value = max(0.0, future_revenue * success_probability)
+
+            annual_co2_reduced = round(future_co2['co2_potentially_reduced_mt'], 3) if future_co2 else 0
+            annual_co2_reduced = max(0.0, annual_co2_reduced)
+            cumulative_co2_reduced += annual_co2_reduced
+            cumulative_revenue += future_revenue
+            
+            future_total_co2 = future_co2['total_country_co2_mt'] if future_co2 else base_year_co2
+            future_total_co2 = max(0.0, future_total_co2)
+            co2_after_reduction = max(0.0, future_total_co2 - annual_co2_reduced)
+            co2_reduced_from_base = max(0.0, cumulative_co2_reduced)
+
+            projection_entry = {
+                'year': int(future_year),
+                'revenue_million': max(0.0, round(future_revenue, 2)),
+                'co2_reduced_mt': max(0.0, annual_co2_reduced),
+                'co2_reduced_cumulative_mt': max(0.0, round(cumulative_co2_reduced, 3)),
+                'co2_after_reduction_mt': max(0.0, round(co2_after_reduction, 2)),
+                'co2_reduced_from_base_mt': max(0.0, round(co2_reduced_from_base, 3)),
+                'abolishment_risk_percent': max(0.0, min(100.0, round(time_escalated_risk, 1))),
+                'risk_category': str(escalated_risk_category) if escalated_risk_category else "At Risk",
+                'risk_adjusted_value_million': max(0.0, round(future_risk_adjusted_value, 2)),
+                'cumulative_revenue_million': max(0.0, round(cumulative_revenue, 2))
+            }
+            projections.append(projection_entry)
 
         return PredictionResponse(
             revenue_million=round(predicted_revenue, 2),
@@ -156,14 +270,13 @@ def predict_all(request: PredictionRequest):
             trees_planted_equivalent=equivalencies['trees_planted_1year'],
             coal_plants_closed_equivalent=equivalencies['coal_plants_closed'],
             homes_powered_equivalent=equivalencies['homes_powered_clean_1year'],
-            risk_adjusted_value_million=round(risk_adjusted_value, 2),
-            confidence_interval_low=round(predicted_revenue - ci_margin, 2),
-            confidence_interval_high=round(predicted_revenue + ci_margin, 2),
-            recommendation=context['recommendation'],
-            similar_policies=context['similar_policies'],
-            key_risks=context['key_risks'],
-            context_explanation=context['success_context']['context_message'],
-            projections=projections
+            equivalencies_source=equivalencies['source_context'],
+            risk_adjusted_value_million=max(0.0, round(risk_adjusted_value, 2)) if risk_adjusted_value is not None else 0.0,
+            recommendation=context.get('recommendation', 'Policy assessment available.'),
+            similar_policies=context.get('similar_policies', ['Historical policy data analysis available.']),
+            key_risks=context.get('key_risks', ['Standard implementation considerations apply.']),
+            context_explanation=context.get('success_context', {}).get('context_message', f'Risk assessment for {request.country} based on regional patterns and economic factors.'),
+            projections=projections if isinstance(projections, list) else []
         )
 
     except HTTPException:

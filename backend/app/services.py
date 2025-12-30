@@ -120,14 +120,22 @@ def get_country_total_co2(country: str, year: int) -> float:
         country_data = co2_data[co2_data['Entity'] == country]
         if not country_data.empty:
             data = country_data.sort_values('Year', ascending=False).head(1)
+            baseline_year = data['Year'].values[0]
 
-    if data.empty:
-        raise ValueError(f"CO2 data not found for {country}")
+            if year > baseline_year:
+                year_offset = year - baseline_year
+                growth_rate = 0.007
+                projection_multiplier = (1 + growth_rate) ** year_offset
+                co2_tonnes = data['Annual CO₂ emissions'].values[0] * projection_multiplier
+            else:
+                co2_tonnes = data['Annual CO₂ emissions'].values[0]
+        else:
+            raise ValueError(f"CO2 data not found for {country}")
+    else:
+        co2_tonnes = data['Annual CO₂ emissions'].values[0]
 
-    co2_tonnes = data['Annual CO₂ emissions'].values[0]
     co2_million_tonnes = co2_tonnes / 1_000_000
-
-    return round(co2_million_tonnes, 2)
+    return co2_million_tonnes
 
 def get_available_countries():
     if energy_data is None:

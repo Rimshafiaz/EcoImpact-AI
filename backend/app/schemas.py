@@ -13,9 +13,14 @@ class PredictionRequest(BaseModel):
 class YearProjection(BaseModel):
     year: int
     revenue_million: float
-    co2_reduced_mt: float
+    cumulative_revenue_million: float = Field(..., description="Cumulative revenue from Year 1 to this year (Million USD)")
+    co2_reduced_mt: float = Field(..., description="Annual CO2 reduction for this year (Million tonnes)")
+    co2_reduced_cumulative_mt: float = Field(..., description="Cumulative CO2 reduction from Year 1 to this year (Million tonnes)")
+    co2_after_reduction_mt: float = Field(..., description="CO2 level after reduction for this year (Million tonnes)")
+    co2_reduced_from_base_mt: float = Field(..., description="Total CO2 reduced from base year (Year 1) to this year (Million tonnes)")
     abolishment_risk_percent: float
     risk_category: str
+    risk_adjusted_value_million: float = Field(..., description="Revenue adjusted for abolishment risk (Million USD)")
 
 class PredictionResponse(BaseModel):
     revenue_million: float = Field(..., description="Predicted revenue (Million USD)")
@@ -32,10 +37,9 @@ class PredictionResponse(BaseModel):
     trees_planted_equivalent: int = Field(..., description="Equivalent trees planted for 1 year")
     coal_plants_closed_equivalent: float = Field(..., description="Equivalent 1GW coal plants closed")
     homes_powered_equivalent: int = Field(..., description="Equivalent homes powered clean for 1 year")
+    equivalencies_source: str = Field(..., description="Brief source context for equivalency conversion factors")
 
     risk_adjusted_value_million: float = Field(..., description="Revenue adjusted for abolishment risk (Million USD)")
-    confidence_interval_low: float = Field(..., description="Lower bound of 95% CI (Million USD)")
-    confidence_interval_high: float = Field(..., description="Upper bound of 95% CI (Million USD)")
 
     recommendation: str = Field(..., description="Policy recommendation")
     similar_policies: List[str] = Field(..., description="List of similar real-world policies")

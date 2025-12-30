@@ -11,11 +11,10 @@ def load_training_data():
     global training_data, COUNTRIES_WITH_HISTORICAL_DATA
 
     clean_data = DATA_DIR / "processed" / "ecoimpact_clean_for_retraining.csv"
-    if clean_data.exists():
-        training_data = pd.read_csv(clean_data)
-    else:
-        training_data = pd.read_csv(DATA_DIR / "processed" / "ecoimpact_complete_dataset.csv")
-
+    if not clean_data.exists():
+        raise FileNotFoundError(f"Required dataset not found: {clean_data}")
+    
+    training_data = pd.read_csv(clean_data)
     COUNTRIES_WITH_HISTORICAL_DATA = training_data['Jurisdiction'].unique().tolist()
 
 def is_country_in_training(country):
@@ -23,10 +22,11 @@ def is_country_in_training(country):
 
 def generate_success_context(country, policy_type, predicted_risk_pct, risk_category, region=None):
     if country not in COUNTRIES_WITH_HISTORICAL_DATA:
+        region_text = f"{region}" if region else "the region"
         context_message = (
             f"{country} has no historical record of implementing carbon pricing policies in our training dataset. "
             f"This absence of prior experience introduces significant uncertainty. The risk assessment is based on "
-            f"regional patterns from {region}, economic development level, and energy structure factors, "
+            f"regional patterns from {region_text}, economic development level, and energy structure factors, "
             f"but lacks country-specific validation."
         )
 
@@ -43,17 +43,18 @@ def generate_success_context(country, policy_type, predicted_risk_pct, risk_cate
 
     from .mappings import get_income_level
     income_level = get_income_level(country)
+    region_text = f"{region}" if region else "the region"
 
     if risk_category == "Low Risk":
-        context_msg = f'The model predicts Low Risk for {country}. This assessment is based on the country\'s {income_level} economic status, favorable regional patterns from {region} where similar policies have shown strong sustainability, and current economic conditions. The model indicates low probability of policy failure based on these regional and economic factors.'
+        context_msg = f'The model predicts Low Risk for {country}. This assessment is based on the country\'s {income_level} economic status, favorable regional patterns from {region_text} where similar policies have shown strong sustainability, and current economic conditions. The model indicates low probability of policy failure based on these regional and economic factors.'
         recommendation = 'Favorable conditions for policy implementation.'
 
     elif risk_category == "High Risk":
-        context_msg = f'The model predicts High Risk for {country}. This assessment is based on challenging regional patterns in {region} where similar policies have a history of not surviving, combined with economic and energy structure factors. The model indicates significant risk of policy failure based on these regional and economic conditions.'
+        context_msg = f'The model predicts High Risk for {country}. This assessment is based on challenging regional patterns in {region_text} where similar policies have a history of not surviving, combined with economic and energy structure factors. The model indicates significant risk of policy failure based on these regional and economic conditions.'
         recommendation = 'Significant challenges identified.'
 
     else: 
-        context_msg = f'The model predicts At Risk for {country}. This moderate risk level is based on mixed regional outcomes in {region}, the country\'s {income_level} economic status, and current energy/economic factors. The assessment indicates uncertainty - success is possible but faces moderate challenges based on regional patterns and economic conditions.'
+        context_msg = f'The model predicts At Risk for {country}. This moderate risk level is based on mixed regional outcomes in {region_text}, the country\'s {income_level} economic status, and current energy/economic factors. The assessment indicates uncertainty - success is possible but faces moderate challenges based on regional patterns and economic conditions.'
         recommendation = 'Moderate risk - careful implementation required.'
 
     return {
@@ -69,13 +70,13 @@ def calculate_benchmarking(user_coverage_pct, user_revenue, user_carbon_price, r
     if len(historical) == 0:
         return None
 
-    coverage_percentile = (historical['Emission coverage %'] < user_coverage_pct).mean() * 100
-    revenue_percentile = (historical['Revenue (million USD)'] < user_revenue).mean() * 100
-    price_percentile = (historical['Carbon price (USD)'] < user_carbon_price).mean() * 100
+    coverage_percentile = (historical['Actual_Coverage_%'] < user_coverage_pct).mean() * 100
+    revenue_percentile = (historical['Revenue_Million_USD'] < user_revenue).mean() * 100
+    price_percentile = (historical['Carbon_Price_USD'] < user_carbon_price).mean() * 100
 
-    avg_coverage = historical['Emission coverage %'].mean()
-    avg_revenue = historical['Revenue (million USD)'].mean()
-    avg_price = historical['Carbon price (USD)'].mean()
+    avg_coverage = historical['Actual_Coverage_%'].mean()
+    avg_revenue = historical['Revenue_Million_USD'].mean()
+    avg_price = historical['Carbon_Price_USD'].mean()
 
     coverage_vs_avg = ((user_coverage_pct / avg_coverage - 1) * 100) if avg_coverage > 0 else 0
     revenue_vs_avg = ((user_revenue / avg_revenue - 1) * 100) if avg_revenue > 0 else 0
@@ -104,32 +105,20 @@ def calculate_risk_adjusted_revenue(revenue_usd, abolishment_probability):
     expected_revenue_conservative = revenue_usd * success_probability
     expected_revenue_optimistic = revenue_usd * (success_probability + 0.5 * abolishment_probability)
 
-    confidence_low = revenue_usd * 0.7 * success_probability
-    confidence_high = revenue_usd * 1.3 * success_probability
-
     risk_discount = revenue_usd - expected_revenue_conservative
 
     return {
         'base_revenue': round(revenue_usd, 2),
         'expected_value': round(expected_revenue_conservative, 2),
         'optimistic_scenario': round(expected_revenue_optimistic, 2),
-        'confidence_interval_low': round(confidence_low, 2),
-        'confidence_interval_high': round(confidence_high, 2),
         'risk_discount': round(risk_discount, 2),
         'success_probability': round(success_probability * 100, 1)
     }
 
 def generate_context(country, policy_type, carbon_price, coverage_pct, revenue, abolishment_risk, risk_category, region=None):
-    """
-    Generate comprehensive context for policy prediction.
-
-    Combines success context, risk assessment, and similar policies.
-    """
-    # Initialize training data if not loaded
     if training_data is None:
         load_training_data()
 
-    # Use the risk_category passed from predict_success (already calculated)
     success_ctx = generate_success_context(country, policy_type, abolishment_risk, risk_category, region)
 
     recommendation = success_ctx['recommendation']
