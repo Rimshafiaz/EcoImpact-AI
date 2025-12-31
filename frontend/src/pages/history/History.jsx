@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getUserSimulations, getSimulationById } from '../../utils/api/simulations';
+import { getUserSimulations, getSimulationById, deleteSimulation, updateSimulationName } from '../../utils/api/simulations';
 import { isAuthenticated } from '../../utils/api/auth';
 import SimulationList from './components/SimulationList';
 import SimulationDetail from './components/SimulationDetail';
@@ -52,6 +52,31 @@ export default function History() {
     setSelectedSimulation(null);
   };
 
+  const handleDelete = async (simulationId) => {
+    try {
+      await deleteSimulation(simulationId);
+      await loadSimulations();
+      if (selectedSimulation && selectedSimulation.id === simulationId) {
+        setSelectedSimulation(null);
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to delete simulation');
+    }
+  };
+
+  const handleEditName = async (simulationId, newName) => {
+    try {
+      await updateSimulationName(simulationId, newName);
+      await loadSimulations();
+      if (selectedSimulation && selectedSimulation.id === simulationId) {
+        const updated = await getSimulationById(simulationId);
+        setSelectedSimulation(updated);
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to update simulation name');
+    }
+  };
+
   const filteredSimulations = simulations.filter(sim => {
     const matchesSearch = !searchTerm || 
       sim.policy_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -88,6 +113,11 @@ export default function History() {
           <SimulationDetail
             simulation={selectedSimulation}
             onBack={handleBackToList}
+            onUpdate={async () => {
+              const updated = await getSimulationById(selectedSimulation.id);
+              setSelectedSimulation(updated);
+              await loadSimulations();
+            }}
           />
         ) : (
           <SimulationList
@@ -96,6 +126,8 @@ export default function History() {
             loading={loading}
             onSimulationClick={handleSimulationClick}
             onRefresh={loadSimulations}
+            onDelete={handleDelete}
+            onEditName={handleEditName}
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
             filterCountry={filterCountry}

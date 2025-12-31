@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getUserSimulations, compareSimulations, getSimulationById } from '../../utils/api/simulations';
+import { getUserSimulations, compareSimulations, getSimulationById, deleteSimulation } from '../../utils/api/simulations';
 import { isAuthenticated } from '../../utils/api/auth';
 import SimulationList from './components/SimulationList';
 import ComparisonView from './components/ComparisonView';
@@ -91,6 +91,19 @@ export default function Compare() {
     setShowNewComparison(false);
   };
 
+  const handleDelete = async (simulationId) => {
+    try {
+      await deleteSimulation(simulationId);
+      await loadSimulations();
+      if (selectedSimulation && selectedSimulation.id === simulationId) {
+        setSelectedSimulation(null);
+        setViewMode('list');
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to delete simulation');
+    }
+  };
+
   return (
     <div className="fixed inset-0 w-full h-full bg-[#0A0D0B] overflow-hidden">
       <div className="fixed bottom-[-80px] right-[-80px] w-[400px] h-[400px] md:bottom-[-100px] md:right-[-100px] md:w-[500px] md:h-[500px] lg:bottom-[-150px] lg:right-[-150px] lg:w-[700px] lg:h-[700px] pointer-events-none z-0 overflow-hidden">
@@ -117,6 +130,7 @@ export default function Compare() {
             onCompareTwo={handleCompareTwo}
             onNewComparison={() => setShowNewComparison(true)}
             onRefresh={loadSimulations}
+            onDelete={handleDelete}
           />
         )}
 

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Body, Body
+from fastapi import APIRouter, Depends, HTTPException, status, Body, Form, Body
 from sqlalchemy.orm import Session
 from typing import List
 from .database import get_db
@@ -339,6 +339,41 @@ def get_simulation(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Simulation not found"
         )
+    
+    return SimulationDetail(
+        id=simulation.id,
+        user_id=simulation.user_id,
+        policy_name=simulation.policy_name,
+        created_at=simulation.created_at,
+        input_params=simulation.input_params,
+        results=PredictionResponse(**simulation.results)
+    )
+
+@router.patch("/{simulation_id}", response_model=SimulationDetail)
+def update_simulation(
+    simulation_id: int,
+    body: dict = Body(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    from .schemas import PredictionResponse
+    
+    simulation = db.query(Simulation).filter(
+        Simulation.id == simulation_id,
+        Simulation.user_id == current_user.id
+    ).first()
+    
+    if not simulation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Simulation not found"
+        )
+    
+    policy_name = body.get('policy_name')
+    if policy_name is not None:
+        simulation.policy_name = policy_name
+        db.commit()
+        db.refresh(simulation)
     
     return SimulationDetail(
         id=simulation.id,

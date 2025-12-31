@@ -74,6 +74,21 @@ export const deleteSimulation = async (simulationId) => {
   }
 };
 
+export const updateSimulationName = async (simulationId, policyName) => {
+  const response = await fetch(`${API_BASE_URL}/simulations/${simulationId}`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ policy_name: policyName })
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to update simulation name');
+  }
+
+  return await response.json();
+};
+
 export const compareSimulations = async (options) => {
   const requestBody = {};
   

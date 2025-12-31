@@ -26,7 +26,8 @@ export default function Login() {
 
     try {
       await login(formData.email, formData.password);
-      navigate('/simulate');
+      window.dispatchEvent(new Event('auth-change'));
+      setTimeout(() => navigate('/simulate'), 100);
     } catch (err) {
       setError(err.message || 'Login failed. Please check your credentials.');
     } finally {
