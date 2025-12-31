@@ -48,18 +48,33 @@ class PredictionResponse(BaseModel):
 
     projections: List[YearProjection] = Field(..., description="Year-by-year projections")
 
-class SaveSimulationRequest(BaseModel):
-    simulation_name: Optional[str] = "Untitled Simulation"
-    notes: Optional[str] = None
-    prediction_data: PredictionRequest
-    prediction_results: PredictionResponse
-
-class SimulationHistory(BaseModel):
-    id: str
+class SimulationSummary(BaseModel):
+    id: int
+    policy_name: Optional[str]
     created_at: datetime
-    simulation_name: str
     country: str
     policy_type: str
-    revenue_million: Optional[float]
+    carbon_price_usd: float
     coverage_percent: float
+    revenue_million: float
     risk_category: str
+    
+    class Config:
+        from_attributes = True
+
+class SimulationDetail(BaseModel):
+    id: int
+    user_id: int
+    policy_name: Optional[str]
+    created_at: datetime
+    input_params: dict
+    results: PredictionResponse
+    
+    class Config:
+        from_attributes = True
+
+class CompareSimulationsRequest(BaseModel):
+    simulation_id_1: Optional[int] = None
+    simulation_id_2: Optional[int] = None
+    new_simulation_1: Optional[PredictionRequest] = None
+    new_simulation_2: Optional[PredictionRequest] = None

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import InputForm from './components/InputForm';
 import ResultsDisplay from './components/ResultsDisplay';
 import { predictPolicy } from '../../utils/api/predictions';
+import { saveSimulation } from '../../utils/api/simulations';
+import { isAuthenticated } from '../../utils/api/auth';
 import cyberEarthImage from '../../assets/cyberearth.png';
 
 export default function Simulate() {
@@ -20,6 +22,14 @@ export default function Simulate() {
     try {
       const predictions = await predictPolicy(formData);
       setResults(predictions);
+      
+      if (isAuthenticated()) {
+        try {
+          await saveSimulation(formData, predictions);
+        } catch (saveErr) {
+          console.error('Failed to save simulation:', saveErr);
+        }
+      }
     } catch (err) {
       setError(err.message || 'Failed to generate predictions');
       console.error('Prediction error:', err);

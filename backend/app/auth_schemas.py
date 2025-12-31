@@ -23,7 +23,12 @@ class UserResponse(BaseModel):
     email: str
     full_name: Optional[str]
     is_active: bool
+    email_verified: bool
     
     class Config:
         from_attributes = True
+
+
+class ResendVerificationRequest(BaseModel):
+    email: EmailStr = Field(..., description="User email address")
 

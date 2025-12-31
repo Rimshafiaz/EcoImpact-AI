@@ -5,67 +5,102 @@ export default function ProjectionsSection({ results }) {
 
   const years = projections.map(p => p.year);
   const cumulativeRevenues = projections.map(p => p.cumulative_revenue_million || 0);
-  const co2Reduced = projections.map(p => p.co2_reduced_mt);
+  const cumulativeCo2Reduced = projections.map(p => p.co2_reduced_cumulative_mt || 0);
   const risks = projections.map(p => p.abolishment_risk_percent);
 
-  const revenueCo2Data = [
-    {
-      x: years,
-      y: cumulativeRevenues,
-      name: 'Cumulative Revenue',
-      type: 'scatter',
-      mode: 'lines+markers',
-      yaxis: 'y',
-      line: { color: '#00FF6F', width: 3 },
-      marker: { size: 8, color: '#00FF6F' },
-      hovertemplate: 'Year %{x}<br>Cumulative Revenue: $%{y:.2f}M<extra></extra>'
-    },
-    {
-      x: years,
-      y: co2Reduced,
-      name: 'CO2 Reduced',
-      type: 'scatter',
-      mode: 'lines+markers',
-      yaxis: 'y2',
-      line: { color: '#60a5fa', width: 3, dash: 'dash' },
-      marker: { size: 8, color: '#60a5fa' },
-      hovertemplate: 'Year %{x}<br>CO2: %{y:.2f}M tonnes<extra></extra>'
-    }
-  ];
+  const maxRevenue = Math.max(...cumulativeRevenues, 1);
+  const maxCo2 = Math.max(...cumulativeCo2Reduced, 1);
+  
+  const revenueTrace = {
+    x: years,
+    y: cumulativeRevenues,
+    name: 'Cumulative Revenue',
+    type: 'scatter',
+    mode: 'lines+markers',
+    line: { color: '#00FF6F', width: 3 },
+    marker: { size: 10, color: '#00FF6F', line: { width: 2, color: '#0A0D0B' } },
+    hovertemplate: 'Year %{x}<br>Cumulative Revenue: $%{y:.2f}M<extra></extra>',
+    xaxis: 'x',
+    yaxis: 'y'
+  };
 
+  const co2Trace = {
+    x: years,
+    y: cumulativeCo2Reduced,
+    name: 'Cumulative CO2 Reduced',
+    type: 'scatter',
+    mode: 'lines+markers',
+    line: { color: '#60a5fa', width: 3, dash: 'dash' },
+    marker: { size: 10, color: '#60a5fa', line: { width: 2, color: '#0A0D0B' } },
+    hovertemplate: 'Year %{x}<br>Cumulative CO2: %{y:.3f}M tonnes<extra></extra>',
+    xaxis: 'x2',
+    yaxis: 'y2'
+  };
+
+  const revenueCo2Data = [revenueTrace, co2Trace];
+  
   const revenueCo2Layout = {
+    grid: {
+      rows: 2,
+      columns: 1,
+      pattern: 'independent',
+      roworder: 'top to bottom'
+    },
     xaxis: {
       title: 'Year',
       color: '#9ca3af',
       gridcolor: '#1a4d45',
       titlefont: { size: 10 },
-      tickfont: { size: 9 }
+      tickfont: { size: 9 },
+      showgrid: true,
+      gridwidth: 1,
+      domain: [0, 1],
+      anchor: 'y'
     },
     yaxis: {
       title: 'Cumulative Revenue (Million USD)',
       titlefont: { color: '#00FF6F', size: 10 },
       tickfont: { color: '#00FF6F', size: 9 },
+      color: '#00FF6F',
+      gridcolor: 'rgba(0, 255, 111, 0.15)',
+      showgrid: true,
+      gridwidth: 1,
+      range: [0, maxRevenue * 1.1],
+      domain: [0.55, 1]
+    },
+    xaxis2: {
+      title: 'Year',
       color: '#9ca3af',
-      gridcolor: '#1a4d45'
+      gridcolor: '#1a4d45',
+      titlefont: { size: 10 },
+      tickfont: { size: 9 },
+      showgrid: true,
+      gridwidth: 1,
+      domain: [0, 1],
+      anchor: 'y2'
     },
     yaxis2: {
-      title: 'CO2 Reduced (Million Tonnes)',
+      title: 'Cumulative CO2 Reduced (Million Tonnes)',
       titlefont: { color: '#60a5fa', size: 10 },
       tickfont: { color: '#60a5fa', size: 9 },
-      overlaying: 'y',
-      side: 'right',
-      color: '#9ca3af'
+      color: '#60a5fa',
+      gridcolor: 'rgba(96, 165, 250, 0.15)',
+      showgrid: true,
+      gridwidth: 1,
+      range: [0, maxCo2 * 1.1],
+      domain: [0, 0.45]
     },
     paper_bgcolor: '#0a1f1c',
     plot_bgcolor: '#0a1f1c',
     font: { color: '#9ca3af', size: 9 },
-    margin: { l: 60, r: 70, t: 50, b: 60 },
-    height: 350,
+    margin: { l: 70, r: 40, t: 30, b: 60 },
+    height: 500,
+    showlegend: true,
     legend: {
       x: 0.02,
-      y: 1.02,
+      y: 0.98,
       xanchor: 'left',
-      yanchor: 'bottom',
+      yanchor: 'top',
       bgcolor: '#0d2a26',
       bordercolor: '#1a4d45',
       borderwidth: 1,
@@ -118,7 +153,7 @@ export default function ProjectionsSection({ results }) {
               <h3 className="text-gray-300 text-sm font-semibold mb-2">Revenue & CO2 Trend</h3>
               <Plot
                 data={revenueCo2Data}
-                layout={{...revenueCo2Layout, height: Math.min(420, Math.max(320, projections.length * 35)), margin: { l: 50, r: 65, t: 20, b: 55 }}}
+                layout={{...revenueCo2Layout, height: Math.min(550, Math.max(450, projections.length * 45))}}
                 config={{ displayModeBar: false, responsive: true }}
                 className="w-full"
               />
@@ -136,7 +171,7 @@ export default function ProjectionsSection({ results }) {
                   Cumulative Revenue<br />Million USD
                 </th>
                 <th className="text-right text-gray-400 text-xs font-semibold py-2 px-3 uppercase tracking-wider whitespace-normal leading-tight">
-                  CO2 Reduction<br />Million Tonnes/Year
+                  Cumulative CO2<br />Reduction (Million Tonnes)
                 </th>
                 <th className="text-right text-gray-400 text-xs font-semibold py-2 px-3 uppercase tracking-wider whitespace-normal leading-tight">
                   Abolishment Risk<br />Probability
@@ -152,7 +187,7 @@ export default function ProjectionsSection({ results }) {
                     ${(proj.cumulative_revenue_million || 0).toFixed(2)}M
                   </td>
                   <td className="text-right text-blue-400 py-2 px-3 font-bold text-sm">
-                    {proj.co2_reduced_mt?.toFixed(3)}M
+                    {proj.co2_reduced_cumulative_mt?.toFixed(3)}M
                   </td>
                   <td className="text-right text-yellow-400 py-2 px-3 font-semibold text-sm">
                     {proj.abolishment_risk_percent?.toFixed(1)}%

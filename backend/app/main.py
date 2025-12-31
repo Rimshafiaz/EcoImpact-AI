@@ -7,6 +7,7 @@ from .calculations import calculate_co2_impact, calculate_equivalencies
 from .context import generate_context, load_training_data
 from .services import load_all_data, get_country_features, get_available_countries, get_country_total_co2
 from .auth_routes import router as auth_router
+from .simulation_routes import router as simulation_router
 from .database import init_db
 
 @asynccontextmanager
@@ -32,7 +33,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    print(f"[GLOBAL ERROR] {type(exc).__name__}: {str(exc)}")
+    import traceback
+    traceback.print_exc()
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Internal server error: {str(exc)}"}
+    )
+
 app.include_router(auth_router)
+app.include_router(simulation_router)
 
 @app.get("/")
 def read_root():

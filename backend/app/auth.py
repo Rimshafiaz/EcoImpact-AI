@@ -45,3 +45,8 @@ def decode_access_token(token: str) -> Optional[dict]:
     except JWTError:
         return None
 
+
+def generate_verification_token() -> str:
+    import secrets
+    return secrets.token_urlsafe(32)
+

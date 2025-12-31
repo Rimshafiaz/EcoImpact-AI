@@ -73,7 +73,20 @@ react.svg
 vite.svg
 
 EcoImpact-Frontend-main
-null
+
+# Migration scripts (one-time use)
+backend/migrate_*.py
+
+# Temporary/backup files
+*_backup_*.csv
+*.backup
+*.bak
+
+# Dataset large files (keep structure but not large CSVs)
+dataset/processed/*_backup_*.csv
+
+# Old/unused folders
+appmodels/
 
 tests
 
