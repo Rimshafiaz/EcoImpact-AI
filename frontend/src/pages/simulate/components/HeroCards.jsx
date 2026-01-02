@@ -16,9 +16,9 @@ export default function HeroCards({ results }) {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div className="bg-[rgba(26,38,30,0.8)] rounded-xl p-6 border border-[rgba(0,255,111,0.15)] hover:border-[rgba(0,255,111,0.3)] hover:shadow-[0_0_20px_rgba(0,255,111,0.2)] transition-all duration-300 transform hover:-translate-y-1">
+      <div className="bg-[rgba(26,38,30,0.8)] rounded-xl p-6 border border-[rgba(0,255,111,0.15)] hover:border-[rgba(0,255,111,0.3)] hover:shadow-[0_0_20px_rgba(0,255,111,0.2)] transition-all duration-300 transform hover:-translate-y-1 overflow-hidden">
         <p className="text-gray-400 text-xs uppercase tracking-wider mb-2">Cumulative Revenue</p>
-        <p className="text-[#00FF6F] text-4xl font-bold mb-1">
+        <p className="text-[#00FF6F] text-2xl lg:text-4xl font-bold mb-1 break-words leading-tight">
           ${cumulativeRevenue}M
         </p>
         <p className="text-gray-500 text-xs">Over {results.projections?.length || 1} year{results.projections?.length !== 1 ? 's' : ''}</p>
@@ -38,9 +38,9 @@ export default function HeroCards({ results }) {
         </p>
       </div>
 
-      <div className="bg-[rgba(26,38,30,0.8)] rounded-xl p-6 border border-[rgba(0,255,111,0.15)] hover:border-[rgba(0,255,111,0.3)] hover:shadow-[0_0_20px_rgba(0,255,111,0.2)] transition-all duration-300 transform hover:-translate-y-1">
+      <div className="bg-[rgba(26,38,30,0.8)] rounded-xl p-6 border border-[rgba(0,255,111,0.15)] hover:border-[rgba(0,255,111,0.3)] hover:shadow-[0_0_20px_rgba(0,255,111,0.2)] transition-all duration-300 transform hover:-translate-y-1 overflow-hidden">
         <p className="text-gray-400 text-xs uppercase tracking-wider mb-2">CO2 Reduction</p>
-        <p className="text-blue-400 text-4xl font-bold mb-1">
+        <p className="text-blue-400 text-2xl lg:text-4xl font-bold mb-1 break-words leading-tight">
           {results.co2_reduced_mt?.toFixed(2)}M
         </p>
         <p className="text-gray-500 text-xs">Tonnes/year</p>

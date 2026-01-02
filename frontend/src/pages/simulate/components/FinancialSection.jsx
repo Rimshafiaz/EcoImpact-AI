@@ -71,15 +71,15 @@ export default function FinancialSection({ results }) {
 
       <div className="p-5">
         <div className="grid grid-cols-2 gap-4 mb-5">
-          <div className="bg-[rgba(10,13,11,0.6)] rounded-lg p-4 border border-[rgba(0,255,111,0.1)]">
+          <div className="bg-[rgba(10,13,11,0.6)] rounded-lg p-4 border border-[rgba(0,255,111,0.1)] min-w-0 overflow-hidden">
             <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">Expected Revenue</p>
-            <p className="text-[#00FF6F] text-2xl font-bold">${results.revenue_million?.toFixed(2)}M</p>
+            <p className="text-[#00FF6F] text-lg lg:text-2xl font-bold break-words leading-tight">${results.revenue_million?.toFixed(2)}M</p>
             <p className="text-gray-500 text-[10px] mt-1">Per year</p>
           </div>
 
-          <div className="bg-[rgba(10,13,11,0.6)] rounded-lg p-4 border border-[rgba(255,187,36,0.1)]">
+          <div className="bg-[rgba(10,13,11,0.6)] rounded-lg p-4 border border-[rgba(255,187,36,0.1)] min-w-0 overflow-hidden">
             <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">Risk-Adjusted</p>
-            <p className="text-yellow-400 text-2xl font-bold">${results.risk_adjusted_value_million?.toFixed(2)}M</p>
+            <p className="text-yellow-400 text-lg lg:text-2xl font-bold break-words leading-tight">${results.risk_adjusted_value_million?.toFixed(2)}M</p>
             <p className="text-gray-500 text-[10px] mt-1">{results.abolishment_risk_percent?.toFixed(1)}% risk</p>
           </div>
         </div>

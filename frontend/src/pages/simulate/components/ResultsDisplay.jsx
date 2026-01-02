@@ -9,7 +9,7 @@ export default function ResultsDisplay({ results, inputData }) {
   if (!results) return null;
 
   return (
-    <div className="mt-12 w-full max-w-7xl mx-auto">
+    <div className="mt-12 w-full max-w-7xl mx-auto min-w-0">
       {/* Header Section */}
       <div className="mb-8 animate-fade-in">
         <h2 className="text-[#00FF6F] text-3xl md:text-4xl font-bold mb-3 uppercase tracking-wide">

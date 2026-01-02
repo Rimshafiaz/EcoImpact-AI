@@ -71,24 +71,24 @@ export default function EnvironmentalSection({ results }) {
 
       <div className="p-5">
         <div className="grid grid-cols-2 gap-3 mb-5">
-          <div className="bg-[rgba(10,13,11,0.6)] rounded-lg p-3 border border-[rgba(0,255,111,0.1)]">
+          <div className="bg-[rgba(10,13,11,0.6)] rounded-lg p-3 border border-[rgba(0,255,111,0.1)] min-w-0 overflow-hidden">
             <p className="text-gray-400 text-[10px] uppercase mb-1">Total CO2</p>
-            <p className="text-white text-xl font-bold">{results.total_country_co2_mt?.toFixed(1)}M</p>
+            <p className="text-white text-base lg:text-xl font-bold break-words leading-tight">{results.total_country_co2_mt?.toFixed(1)}M</p>
             <p className="text-gray-500 text-[10px]">tonnes</p>
           </div>
-          <div className="bg-[rgba(10,13,11,0.6)] rounded-lg p-3 border border-[rgba(0,255,111,0.1)]">
+          <div className="bg-[rgba(10,13,11,0.6)] rounded-lg p-3 border border-[rgba(0,255,111,0.1)] min-w-0 overflow-hidden">
             <p className="text-gray-400 text-[10px] uppercase mb-1">Covered</p>
-            <p className="text-[#00D9A3] text-xl font-bold">{results.co2_covered_mt?.toFixed(1)}M</p>
+            <p className="text-[#00D9A3] text-base lg:text-xl font-bold break-words leading-tight">{results.co2_covered_mt?.toFixed(1)}M</p>
             <p className="text-gray-500 text-[10px]">{coveragePercent}%</p>
           </div>
-          <div className="bg-[rgba(10,13,11,0.6)] rounded-lg p-3 border border-[rgba(0,255,111,0.1)]">
+          <div className="bg-[rgba(10,13,11,0.6)] rounded-lg p-3 border border-[rgba(0,255,111,0.1)] min-w-0 overflow-hidden">
             <p className="text-gray-400 text-[10px] uppercase mb-1">Reduced</p>
-            <p className="text-[#00f5c3] text-xl font-bold">{results.co2_reduced_mt?.toFixed(2)}M</p>
+            <p className="text-[#00f5c3] text-base lg:text-xl font-bold break-words leading-tight">{results.co2_reduced_mt?.toFixed(2)}M</p>
             <p className="text-gray-500 text-[10px]">per year</p>
           </div>
-          <div className="bg-[rgba(10,13,11,0.6)] rounded-lg p-3 border border-[rgba(0,255,111,0.1)]">
+          <div className="bg-[rgba(10,13,11,0.6)] rounded-lg p-3 border border-[rgba(0,255,111,0.1)] min-w-0 overflow-hidden">
             <p className="text-gray-400 text-[10px] uppercase mb-1">Per Capita</p>
-            <p className="text-white text-xl font-bold">{results.co2_covered_per_capita_tonnes?.toFixed(2)}</p>
+            <p className="text-white text-base lg:text-xl font-bold break-words leading-tight">{results.co2_covered_per_capita_tonnes?.toFixed(2)}</p>
             <p className="text-gray-500 text-[10px]">tonnes</p>
           </div>
         </div>

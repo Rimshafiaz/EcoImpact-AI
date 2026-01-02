@@ -99,9 +99,9 @@ export default function ComparisonView({ comparisonData, onBack }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div ref={card1Ref}>
+        <div ref={card1Ref} className="min-w-0">
           <div className="mb-4 px-4 py-2 bg-gradient-to-r from-[#00FF6F] to-[#01D6DF] rounded-t-lg">
-            <h2 className="text-xl font-bold text-[#0A0D0B]">
+            <h2 className="text-xl font-bold text-[#0A0D0B] break-words">
               {sim1.policy_name || 'Policy 1'}
             </h2>
           </div>
@@ -120,9 +120,9 @@ export default function ComparisonView({ comparisonData, onBack }) {
           </div>
         </div>
 
-        <div ref={card2Ref}>
+        <div ref={card2Ref} className="min-w-0">
           <div className="mb-4 px-4 py-2 bg-gradient-to-r from-[#01D6DF] to-[#00FF6F] rounded-t-lg">
-            <h2 className="text-xl font-bold text-[#0A0D0B]">
+            <h2 className="text-xl font-bold text-[#0A0D0B] break-words">
               {sim2.policy_name || 'Policy 2'}
             </h2>
           </div>
