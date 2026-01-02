@@ -2,15 +2,17 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getUserSimulations, getSimulationById, deleteSimulation, updateSimulationName } from '../../utils/api/simulations';
 import { isAuthenticated } from '../../utils/api/auth';
+import { useNotificationContext } from '../../App';
+import { extractErrorMessage } from '../../utils/errorHandler';
 import SimulationList from './components/SimulationList';
 import SimulationDetail from './components/SimulationDetail';
 import cyberEarthImage from '../../assets/cyberearth.png';
 
 export default function History() {
   const navigate = useNavigate();
+  const { showError, showSuccess } = useNotificationContext();
   const [simulations, setSimulations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [selectedSimulation, setSelectedSimulation] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCountry, setFilterCountry] = useState('');
@@ -30,7 +32,7 @@ export default function History() {
       const data = await getUserSimulations();
       setSimulations(data);
     } catch (err) {
-      setError(err.message || 'Failed to load simulations');
+      showError(extractErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -42,7 +44,7 @@ export default function History() {
       const sim = await getSimulationById(simulationId);
       setSelectedSimulation(sim);
     } catch (err) {
-      setError(err.message || 'Failed to load simulation');
+      showError(extractErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -59,8 +61,9 @@ export default function History() {
       if (selectedSimulation && selectedSimulation.id === simulationId) {
         setSelectedSimulation(null);
       }
+      showSuccess('Simulation deleted successfully', 2000);
     } catch (err) {
-      setError(err.message || 'Failed to delete simulation');
+      showError(extractErrorMessage(err));
     }
   };
 
@@ -72,8 +75,9 @@ export default function History() {
         const updated = await getSimulationById(simulationId);
         setSelectedSimulation(updated);
       }
+      showSuccess('Simulation name updated successfully', 2000);
     } catch (err) {
-      setError(err.message || 'Failed to update simulation name');
+      showError(extractErrorMessage(err));
     }
   };
 
@@ -103,12 +107,6 @@ export default function History() {
       </div>
 
       <div className="relative z-10 w-full h-full overflow-y-auto px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 py-8 md:py-12 lg:py-16 xl:py-20">
-        {error && (
-          <div className="mb-6 bg-red-900/20 border border-red-500 rounded-lg p-4 text-center max-w-4xl mx-auto">
-            <p className="text-red-400">{error}</p>
-          </div>
-        )}
-
         {selectedSimulation ? (
           <SimulationDetail
             simulation={selectedSimulation}

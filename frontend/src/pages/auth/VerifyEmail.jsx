@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { verifyEmail } from '../../utils/api/auth';
+import { useNotificationContext } from '../../App';
+import { extractErrorMessage } from '../../utils/errorHandler';
 
 export default function VerifyEmail() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { showError, showSuccess } = useNotificationContext();
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState('verifying');
   const [message, setMessage] = useState('');
@@ -24,9 +27,12 @@ export default function VerifyEmail() {
         await verifyEmail(token);
         setStatus('success');
         setMessage('Your email has been verified successfully!');
+        showSuccess('Email verified successfully!', 2000);
       } catch (err) {
         setStatus('error');
-        setMessage(err.message || 'Email verification failed. The link may have expired.');
+        const errorMsg = extractErrorMessage(err);
+        setMessage(errorMsg);
+        showError(errorMsg);
       } finally {
         setLoading(false);
       }

@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
 import { getAvailableCountries } from '../../../utils/api/predictions';
+import { useNotificationContext } from '../../../App';
+import { extractErrorMessage } from '../../../utils/errorHandler';
 
 export default function NewComparisonForm({ onCompare, onCancel, loading }) {
+  const { showError } = useNotificationContext();
   const [countries, setCountries] = useState([]);
   const [form1, setForm1] = useState({
     country: '',
     policyType: 'Carbon Tax',
     carbonPrice: '',
     coverage: '',
-    year: 2025,
     duration: 5
   });
   const [form2, setForm2] = useState({
@@ -16,13 +18,15 @@ export default function NewComparisonForm({ onCompare, onCancel, loading }) {
     policyType: 'Carbon Tax',
     carbonPrice: '',
     coverage: '',
-    year: 2025,
     duration: 5
   });
 
   useEffect(() => {
-    getAvailableCountries().then(setCountries).catch(console.error);
-  }, []);
+    getAvailableCountries().then(setCountries).catch(err => {
+      showError(extractErrorMessage(err));
+      console.error('Failed to load countries:', err);
+    });
+  }, [showError]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -109,17 +113,6 @@ export default function NewComparisonForm({ onCompare, onCancel, loading }) {
                 />
               </div>
               <div>
-                <label className="block text-gray-300 mb-2">Year</label>
-                <input
-                  type="number"
-                  value={form1.year}
-                  onChange={(e) => updateForm(1, 'year', parseInt(e.target.value))}
-                  className="w-full bg-[#0A0D0B] border border-[rgba(0,255,111,0.3)] rounded-lg px-4 py-2 text-white focus:border-[#00FF6F] focus:outline-none"
-                  min="2000"
-                  max="2050"
-                />
-              </div>
-              <div>
                 <label className="block text-gray-300 mb-2">Duration (years)</label>
                 <input
                   type="number"
@@ -184,17 +177,6 @@ export default function NewComparisonForm({ onCompare, onCancel, loading }) {
                   min="10"
                   max="90"
                   step="1"
-                />
-              </div>
-              <div>
-                <label className="block text-gray-300 mb-2">Year</label>
-                <input
-                  type="number"
-                  value={form2.year}
-                  onChange={(e) => updateForm(2, 'year', parseInt(e.target.value))}
-                  className="w-full bg-[#0A0D0B] border border-[rgba(0,255,111,0.3)] rounded-lg px-4 py-2 text-white focus:border-[#00FF6F] focus:outline-none"
-                  min="2000"
-                  max="2050"
                 />
               </div>
               <div>

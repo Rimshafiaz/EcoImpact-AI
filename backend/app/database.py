@@ -16,7 +16,19 @@ if not DATABASE_URL:
         "Please create a .env file with your Supabase connection string."
     )
 
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+if DATABASE_URL.startswith("postgresql://") or DATABASE_URL.startswith("postgres://"):
+    if "sslmode" not in DATABASE_URL.lower():
+        if "?" in DATABASE_URL:
+            DATABASE_URL += "&sslmode=require"
+        else:
+            DATABASE_URL += "?sslmode=require"
+
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,
+    pool_recycle=3600,
+    connect_args={"connect_timeout": 10} if "postgresql" in DATABASE_URL.lower() or "postgres" in DATABASE_URL.lower() else {}
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 

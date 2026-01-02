@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getUserSimulations, compareSimulations, getSimulationById, deleteSimulation } from '../../utils/api/simulations';
 import { isAuthenticated } from '../../utils/api/auth';
+import { exportToCSV, exportToPDF } from '../../utils/export';
+import { useNotificationContext } from '../../App';
+import { extractErrorMessage } from '../../utils/errorHandler';
 import SimulationList from './components/SimulationList';
 import ComparisonView from './components/ComparisonView';
 import NewComparisonForm from './components/NewComparisonForm';
@@ -10,9 +13,9 @@ import cyberEarthImage from '../../assets/cyberearth.png';
 
 export default function Compare() {
   const navigate = useNavigate();
+  const { showError, showSuccess } = useNotificationContext();
   const [simulations, setSimulations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [viewMode, setViewMode] = useState('list');
   const [selectedSimulation, setSelectedSimulation] = useState(null);
   const [comparisonData, setComparisonData] = useState(null);
@@ -32,7 +35,7 @@ export default function Compare() {
       const data = await getUserSimulations();
       setSimulations(data);
     } catch (err) {
-      setError(err.message || 'Failed to load simulations');
+      showError(extractErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -40,12 +43,15 @@ export default function Compare() {
 
   const handleSimulationClick = async (simulationId) => {
     try {
+      setLoading(true);
       const sim = await getSimulationById(simulationId);
       setSelectedSimulation(sim);
       setViewMode('detail');
       setComparisonData(null);
     } catch (err) {
-      setError(err.message || 'Failed to load simulation');
+      showError(extractErrorMessage(err));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -59,8 +65,9 @@ export default function Compare() {
       setComparisonData(data);
       setViewMode('compare');
       setSelectedSimulation(null);
+      showSuccess('Comparison loaded successfully!', 2000);
     } catch (err) {
-      setError(err.message || 'Failed to compare simulations');
+      showError(extractErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -77,8 +84,9 @@ export default function Compare() {
       setViewMode('compare');
       setShowNewComparison(false);
       setSelectedSimulation(null);
+      showSuccess('Comparison generated successfully!', 2000);
     } catch (err) {
-      setError(err.message || 'Failed to compare simulations');
+      showError(extractErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -99,8 +107,9 @@ export default function Compare() {
         setSelectedSimulation(null);
         setViewMode('list');
       }
+      showSuccess('Simulation deleted successfully', 2000);
     } catch (err) {
-      setError(err.message || 'Failed to delete simulation');
+      showError(extractErrorMessage(err));
     }
   };
 
@@ -116,12 +125,6 @@ export default function Compare() {
       </div>
 
       <div className="relative z-10 w-full h-full overflow-y-auto px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 py-8 md:py-12 lg:py-16 xl:py-20">
-        {error && (
-          <div className="mb-6 bg-red-900/20 border border-red-500 rounded-lg p-4 text-center max-w-4xl mx-auto">
-            <p className="text-red-400">{error}</p>
-          </div>
-        )}
-
         {viewMode === 'list' && !showNewComparison && (
           <SimulationList
             simulations={simulations}
@@ -144,12 +147,42 @@ export default function Compare() {
 
         {viewMode === 'detail' && selectedSimulation && (
           <div className="max-w-7xl mx-auto">
-            <button
-              onClick={handleBackToList}
-              className="mb-6 text-[#00FF6F] hover:text-[#01D6DF] transition-colors"
-            >
-              ← Back to List
-            </button>
+            <div className="flex justify-between items-center mb-6">
+              <button
+                onClick={handleBackToList}
+                className="text-[#00FF6F] hover:text-[#01D6DF] transition-colors"
+              >
+                ← Back to List
+              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    try {
+                      exportToCSV(selectedSimulation);
+                      showSuccess('CSV exported successfully', 2000);
+                    } catch (error) {
+                      showError(extractErrorMessage(error));
+                    }
+                  }}
+                  className="px-4 py-2 bg-[rgba(26,38,30,0.8)] border border-[rgba(0,255,111,0.3)] text-[#00FF6F] rounded-lg hover:bg-[rgba(0,255,111,0.1)] transition-colors text-sm font-semibold"
+                >
+                  Export CSV
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      await exportToPDF(selectedSimulation);
+                      showSuccess('PDF exported successfully', 2000);
+                    } catch (error) {
+                      showError(extractErrorMessage(error));
+                    }
+                  }}
+                  className="px-4 py-2 bg-[rgba(26,38,30,0.8)] border border-[rgba(0,255,111,0.3)] text-[#00FF6F] rounded-lg hover:bg-[rgba(0,255,111,0.1)] transition-colors text-sm font-semibold"
+                >
+                  Export PDF
+                </button>
+              </div>
+            </div>
             <div className="mb-8">
               <h1 className="text-[#00FF6F] text-4xl font-bold uppercase tracking-wide mb-4">
                 {selectedSimulation.policy_name || 'Simulation Details'}

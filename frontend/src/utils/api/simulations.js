@@ -1,3 +1,5 @@
+import { extractErrorMessage } from '../errorHandler';
+
 const API_BASE_URL = 'http://localhost:8000';
 
 const getAuthHeaders = () => {
@@ -6,6 +8,21 @@ const getAuthHeaders = () => {
     'Content-Type': 'application/json',
     'Authorization': token ? `Bearer ${token}` : '',
   };
+};
+
+const handleResponse = async (response) => {
+  if (!response.ok) {
+    let errorData;
+    try {
+      errorData = await response.json();
+    } catch {
+      errorData = { detail: `Server error: ${response.status} ${response.statusText}` };
+    }
+    const error = new Error(extractErrorMessage({ response: { data: errorData, status: response.status } }));
+    error.response = { data: errorData, status: response.status };
+    throw error;
+  }
+  return await response.json();
 };
 
 export const saveSimulation = async (inputParams, results, policyName = null) => {
@@ -20,73 +37,72 @@ export const saveSimulation = async (inputParams, results, policyName = null) =>
     policy_name: policyName
   };
 
-  const response = await fetch(`${API_BASE_URL}/simulations`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(requestBody)
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || 'Failed to save simulation');
+  try {
+    const response = await fetch(`${API_BASE_URL}/simulations`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(requestBody)
+    });
+    return await handleResponse(response);
+  } catch (error) {
+    if (error.response) throw error;
+    throw new Error('Network error. Please check your connection and try again.');
   }
-
-  return await response.json();
 };
 
 export const getUserSimulations = async () => {
-  const response = await fetch(`${API_BASE_URL}/simulations`, {
-    method: 'GET',
-    headers: getAuthHeaders()
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || 'Failed to fetch simulations');
+  try {
+    const response = await fetch(`${API_BASE_URL}/simulations`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    return await handleResponse(response);
+  } catch (error) {
+    if (error.response) throw error;
+    throw new Error('Network error. Please check your connection and try again.');
   }
-
-  return await response.json();
 };
 
 export const getSimulationById = async (simulationId) => {
-  const response = await fetch(`${API_BASE_URL}/simulations/${simulationId}`, {
-    method: 'GET',
-    headers: getAuthHeaders()
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || 'Failed to fetch simulation');
+  try {
+    const response = await fetch(`${API_BASE_URL}/simulations/${simulationId}`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    return await handleResponse(response);
+  } catch (error) {
+    if (error.response) throw error;
+    throw new Error('Network error. Please check your connection and try again.');
   }
-
-  return await response.json();
 };
 
 export const deleteSimulation = async (simulationId) => {
-  const response = await fetch(`${API_BASE_URL}/simulations/${simulationId}`, {
-    method: 'DELETE',
-    headers: getAuthHeaders()
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || 'Failed to delete simulation');
+  try {
+    const response = await fetch(`${API_BASE_URL}/simulations/${simulationId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    if (!response.ok) {
+      await handleResponse(response);
+    }
+  } catch (error) {
+    if (error.response) throw error;
+    throw new Error('Network error. Please check your connection and try again.');
   }
 };
 
 export const updateSimulationName = async (simulationId, policyName) => {
-  const response = await fetch(`${API_BASE_URL}/simulations/${simulationId}`, {
-    method: 'PATCH',
-    headers: getAuthHeaders(),
-    body: JSON.stringify({ policy_name: policyName })
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || 'Failed to update simulation name');
+  try {
+    const response = await fetch(`${API_BASE_URL}/simulations/${simulationId}`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ policy_name: policyName })
+    });
+    return await handleResponse(response);
+  } catch (error) {
+    if (error.response) throw error;
+    throw new Error('Network error. Please check your connection and try again.');
   }
-
-  return await response.json();
 };
 
 export const compareSimulations = async (options) => {
@@ -118,17 +134,16 @@ export const compareSimulations = async (options) => {
     };
   }
 
-  const response = await fetch(`${API_BASE_URL}/simulations/compare`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(requestBody)
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || 'Failed to compare simulations');
+  try {
+    const response = await fetch(`${API_BASE_URL}/simulations/compare`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(requestBody)
+    });
+    return await handleResponse(response);
+  } catch (error) {
+    if (error.response) throw error;
+    throw new Error('Network error. Please check your connection and try again.');
   }
-
-  return await response.json();
 };
 

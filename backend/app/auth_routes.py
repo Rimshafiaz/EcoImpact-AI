@@ -1,7 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import OperationalError
 from .database import get_db
+from .errors import (
+    raise_validation_error, raise_unauthorized_error, raise_forbidden_error,
+    raise_conflict_error, raise_service_unavailable_error
+)
 from .models import User
 from .auth_schemas import SignUpRequest, LoginRequest, TokenResponse, UserResponse, ResendVerificationRequest
 from .auth import (
@@ -24,87 +29,88 @@ def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
 ) -> User:
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    
     payload = decode_access_token(token)
     if payload is None:
-        raise credentials_exception
+        raise_unauthorized_error("Your session has expired. Please log in again.")
     
     email: str = payload.get("sub")
     if email is None:
-        raise credentials_exception
+        raise_unauthorized_error("Invalid authentication token. Please log in again.")
     
-    user = db.query(User).filter(User.email == email).first()
+    try:
+        user = db.query(User).filter(User.email == email).first()
+    except OperationalError as e:
+        db.rollback()
+        raise_service_unavailable_error(
+            "Unable to verify your account due to a database connection issue. Please try again in a moment.",
+            service="database"
+        )
+    
     if user is None:
-        raise credentials_exception
+        raise_unauthorized_error("Your account could not be found. Please log in again.")
     
     return user
 
 
 @router.post("/signup")
 async def signup(user_data: SignUpRequest, db: Session = Depends(get_db)):
-    try:
-        existing_user = db.query(User).filter(User.email == user_data.email).first()
-        if existing_user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already registered"
-            )
-        
-        hashed_password = get_password_hash(user_data.password)
-        
-        new_user = User(
-            email=user_data.email,
-            hashed_password=hashed_password,
-            full_name=user_data.full_name,
-            is_active=True,
-            email_verified=True
+    if not user_data.email or not user_data.email.strip():
+        raise_validation_error("Email address is required", field="email")
+    
+    if "@" not in user_data.email or "." not in user_data.email.split("@")[1]:
+        raise_validation_error("Please enter a valid email address", field="email")
+    
+    if not user_data.password or len(user_data.password) < 8:
+        raise_validation_error(
+            "Password must be at least 8 characters long",
+            field="password",
+            details={"min_length": 8}
         )
-        
+    
+    if len(user_data.password) > 128:
+        raise_validation_error(
+            "Password cannot exceed 128 characters",
+            field="password",
+            details={"max_length": 128}
+        )
+    
+    try:
+        existing_user = db.query(User).filter(User.email == user_data.email.lower().strip()).first()
+    except OperationalError as e:
+        db.rollback()
+        raise_service_unavailable_error(
+            "Unable to create account due to a database connection issue. Please try again in a moment.",
+            service="database"
+        )
+    
+    if existing_user:
+        raise_conflict_error(
+            "An account with this email address already exists. Please log in or use a different email.",
+            resource="user"
+        )
+    
+    hashed_password = get_password_hash(user_data.password)
+    
+    new_user = User(
+        email=user_data.email.lower().strip(),
+        hashed_password=hashed_password,
+        full_name=user_data.full_name.strip() if user_data.full_name else None,
+        is_active=True,
+        email_verified=True
+    )
+    
+    try:
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
-        
-        return {"message": "Account created successfully. You can now log in."}
-        
-        # EMAIL VERIFICATION TEMPORARILY DISABLED FOR TESTING
-        # from .auth import create_access_token
-        # 
-        # signup_data = {
-        #     "email": user_data.email,
-        #     "hashed_password": hashed_password,
-        #     "full_name": user_data.full_name
-        # }
-        # 
-        # verification_token = create_access_token(
-        #     data=signup_data,
-        #     expires_delta=timedelta(hours=24)
-        # )
-        # 
-        # email_sent, error_message = send_verification_email(user_data.email, verification_token, user_data.full_name)
-        # 
-        # if not email_sent:
-        #     raise HTTPException(
-        #         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-        #         detail=error_message or "Failed to send verification email. Please try again later."
-        #     )
-        # 
-        # return {"message": "Verification email sent. Please check your email to complete registration."}
-    
-    except HTTPException:
-        raise
-    except Exception as e:
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.error(f"Unexpected error during signup: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred during signup. Please try again later."
+    except OperationalError as e:
+        db.rollback()
+        raise_service_unavailable_error(
+            "Unable to create account due to a database connection issue. Please try again in a moment.",
+            service="database"
         )
+    
+    return {"message": "Account created successfully. You can now log in."}
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -112,26 +118,31 @@ def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
-    user = db.query(User).filter(User.email == form_data.username).first()
+    if not form_data.username or not form_data.username.strip():
+        raise_validation_error("Email address is required", field="username")
+    
+    if not form_data.password:
+        raise_validation_error("Password is required", field="password")
+    
+    try:
+        user = db.query(User).filter(User.email == form_data.username.lower().strip()).first()
+    except OperationalError as e:
+        db.rollback()
+        raise_service_unavailable_error(
+            "Unable to log in due to a database connection issue. Please try again in a moment.",
+            service="database"
+        )
     
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise_unauthorized_error("Incorrect email or password. Please check your credentials and try again.")
     
     if not verify_password(form_data.password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise_unauthorized_error("Incorrect email or password. Please check your credentials and try again.")
     
     if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User account is inactive"
+        raise_forbidden_error(
+            "Your account has been deactivated. Please contact support for assistance.",
+            reason="account_inactive"
         )
     
     # EMAIL VERIFICATION CHECK TEMPORARILY DISABLED FOR TESTING

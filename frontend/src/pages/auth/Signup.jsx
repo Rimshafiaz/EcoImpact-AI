@@ -1,9 +1,13 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { signup, resendVerificationEmail } from '../../utils/api/auth';
+import { useNotificationContext } from '../../App';
+import { extractErrorMessage, extractErrorField } from '../../utils/errorHandler';
 
 export default function Signup() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { showError, showSuccess } = useNotificationContext();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -11,7 +15,7 @@ export default function Signup() {
     fullName: ''
   });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [errors, setErrors] = useState({});
   const [showVerificationMessage, setShowVerificationMessage] = useState(false);
   const [userEmail, setUserEmail] = useState('');
 
@@ -20,31 +24,55 @@ export default function Signup() {
       ...formData,
       [e.target.name]: e.target.value
     });
-    setError('');
+    if (errors[e.target.name]) {
+      setErrors({ ...errors, [e.target.name]: '' });
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setErrors({});
     setLoading(true);
 
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+    if (!formData.email || !formData.email.trim()) {
+      setErrors({ email: 'Email address is required' });
+      setLoading(false);
+      return;
+    }
+
+    if (!formData.password) {
+      setErrors({ password: 'Password is required' });
       setLoading(false);
       return;
     }
 
     if (formData.password.length < 8) {
-      setError('Password must be at least 8 characters long');
+      setErrors({ password: 'Password must be at least 8 characters long' });
+      setLoading(false);
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setErrors({ confirmPassword: 'Passwords do not match' });
       setLoading(false);
       return;
     }
 
     try {
       await signup(formData.email, formData.password, formData.fullName);
-      navigate('/login');
+      showSuccess('Account created successfully! Redirecting to login...', 1500);
+      const from = location.state?.from?.pathname || '/simulate';
+      setTimeout(() => navigate('/login', { state: { from: { pathname: from } } }), 1500);
     } catch (err) {
-      setError(err.message || 'Signup failed. Please try again.');
+      const message = extractErrorMessage(err);
+      const field = extractErrorField(err);
+      
+      if (field) {
+        setErrors({ [field]: message });
+      } else {
+        showError(message);
+        setErrors({});
+      }
       setLoading(false);
     }
   };
@@ -55,12 +83,6 @@ export default function Signup() {
         <div className="bg-[rgba(26,38,30,0.8)] rounded-xl border border-[rgba(0,255,111,0.15)] p-8">
           <h1 className="text-[#00FF6F] text-3xl font-bold mb-2 text-center">Create Account</h1>
           <p className="text-gray-400 text-center mb-8">Sign up to save your simulations</p>
-
-          {error && (
-            <div className="mb-6 bg-red-900/20 border border-red-500 rounded-lg p-3">
-              <p className="text-red-400 text-sm text-center">{error}</p>
-            </div>
-          )}
 
           {showVerificationMessage ? (
             <div className="text-center space-y-4">
@@ -77,9 +99,9 @@ export default function Signup() {
                   onClick={async () => {
                     try {
                       await resendVerificationEmail(userEmail);
-                      alert('Verification email resent!');
+                      showSuccess('Verification email resent!', 2000);
                     } catch (err) {
-                      setError(err.message || 'Failed to resend email');
+                      showError(extractErrorMessage(err));
                     }
                   }}
                   className="text-[#00FF6F] hover:text-[#01D6DF] text-sm font-semibold transition-colors"
@@ -122,9 +144,16 @@ export default function Signup() {
                 value={formData.email}
                 onChange={handleChange}
                 required
-                className="w-full bg-[rgba(10,13,11,0.6)] border border-[rgba(0,255,111,0.2)] rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-[#00FF6F] focus:ring-1 focus:ring-[#00FF6F] transition-all"
+                className={`w-full bg-[rgba(10,13,11,0.6)] border rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-1 transition-all ${
+                  errors.email
+                    ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                    : 'border-[rgba(0,255,111,0.2)] focus:border-[#00FF6F] focus:ring-[#00FF6F]'
+                }`}
                 placeholder="you@example.com"
               />
+              {errors.email && (
+                <p className="mt-1 text-red-400 text-sm">{errors.email}</p>
+              )}
             </div>
 
             <div>
@@ -139,9 +168,16 @@ export default function Signup() {
                 onChange={handleChange}
                 required
                 minLength={8}
-                className="w-full bg-[rgba(10,13,11,0.6)] border border-[rgba(0,255,111,0.2)] rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-[#00FF6F] focus:ring-1 focus:ring-[#00FF6F] transition-all"
+                className={`w-full bg-[rgba(10,13,11,0.6)] border rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-1 transition-all ${
+                  errors.password
+                    ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                    : 'border-[rgba(0,255,111,0.2)] focus:border-[#00FF6F] focus:ring-[#00FF6F]'
+                }`}
                 placeholder="Minimum 8 characters"
               />
+              {errors.password && (
+                <p className="mt-1 text-red-400 text-sm">{errors.password}</p>
+              )}
             </div>
 
             <div>
@@ -156,9 +192,16 @@ export default function Signup() {
                 onChange={handleChange}
                 required
                 minLength={8}
-                className="w-full bg-[rgba(10,13,11,0.6)] border border-[rgba(0,255,111,0.2)] rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-[#00FF6F] focus:ring-1 focus:ring-[#00FF6F] transition-all"
+                className={`w-full bg-[rgba(10,13,11,0.6)] border rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-1 transition-all ${
+                  errors.confirmPassword
+                    ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                    : 'border-[rgba(0,255,111,0.2)] focus:border-[#00FF6F] focus:ring-[#00FF6F]'
+                }`}
                 placeholder="Re-enter your password"
               />
+              {errors.confirmPassword && (
+                <p className="mt-1 text-red-400 text-sm">{errors.confirmPassword}</p>
+              )}
             </div>
 
             <button

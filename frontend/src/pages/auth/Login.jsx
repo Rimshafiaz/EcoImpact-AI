@@ -1,35 +1,51 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { login } from '../../utils/api/auth';
+import { useNotificationContext } from '../../App';
+import { extractErrorMessage, extractErrorField } from '../../utils/errorHandler';
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { showError, showSuccess } = useNotificationContext();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [errors, setErrors] = useState({});
 
   const handleChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
     });
-    setError('');
+    if (errors[e.target.name]) {
+      setErrors({ ...errors, [e.target.name]: '' });
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setErrors({});
     setLoading(true);
 
     try {
       await login(formData.email, formData.password);
+      showSuccess('Login successful!', 1500);
       window.dispatchEvent(new Event('auth-change'));
-      setTimeout(() => navigate('/simulate'), 100);
+      const from = location.state?.from?.pathname || '/simulate';
+      setTimeout(() => navigate(from, { replace: true }), 800);
     } catch (err) {
-      setError(err.message || 'Login failed. Please check your credentials.');
+      const message = extractErrorMessage(err);
+      const field = extractErrorField(err);
+      
+      if (field) {
+        setErrors({ [field]: message });
+      } else {
+        showError(message);
+        setErrors({});
+      }
     } finally {
       setLoading(false);
     }
@@ -41,12 +57,6 @@ export default function Login() {
         <div className="bg-[rgba(26,38,30,0.8)] rounded-xl border border-[rgba(0,255,111,0.15)] p-8">
           <h1 className="text-[#00FF6F] text-3xl font-bold mb-2 text-center">Welcome Back</h1>
           <p className="text-gray-400 text-center mb-8">Log in to access your simulations</p>
-
-          {error && (
-            <div className="mb-6 bg-red-900/20 border border-red-500 rounded-lg p-3">
-              <p className="text-red-400 text-sm text-center">{error}</p>
-            </div>
-          )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
@@ -60,9 +70,17 @@ export default function Login() {
                 value={formData.email}
                 onChange={handleChange}
                 required
-                className="w-full bg-[rgba(10,13,11,0.6)] border border-[rgba(0,255,111,0.2)] rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-[#00FF6F] focus:ring-1 focus:ring-[#00FF6F] transition-all"
+                autoComplete="email"
+                className={`w-full bg-[rgba(10,13,11,0.6)] border rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-1 transition-all ${
+                  errors.email || errors.username
+                    ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                    : 'border-[rgba(0,255,111,0.2)] focus:border-[#00FF6F] focus:ring-[#00FF6F]'
+                }`}
                 placeholder="you@example.com"
               />
+              {(errors.email || errors.username) && (
+                <p className="mt-1 text-red-400 text-sm">{errors.email || errors.username}</p>
+              )}
             </div>
 
             <div>
@@ -76,9 +94,17 @@ export default function Login() {
                 value={formData.password}
                 onChange={handleChange}
                 required
-                className="w-full bg-[rgba(10,13,11,0.6)] border border-[rgba(0,255,111,0.2)] rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-[#00FF6F] focus:ring-1 focus:ring-[#00FF6F] transition-all"
+                autoComplete="current-password"
+                className={`w-full bg-[rgba(10,13,11,0.6)] border rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-1 transition-all ${
+                  errors.password
+                    ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                    : 'border-[rgba(0,255,111,0.2)] focus:border-[#00FF6F] focus:ring-[#00FF6F]'
+                }`}
                 placeholder="Enter your password"
               />
+              {errors.password && (
+                <p className="mt-1 text-red-400 text-sm">{errors.password}</p>
+              )}
             </div>
 
             <button

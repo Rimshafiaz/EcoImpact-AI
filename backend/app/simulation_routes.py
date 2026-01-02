@@ -1,26 +1,80 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Body, Form, Body
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import OperationalError
 from typing import List
 from .database import get_db
 from .models import Simulation, User
 from .schemas import SimulationSummary, SimulationDetail, CompareSimulationsRequest, PredictionRequest, PredictionResponse
 from .auth_routes import get_current_user
+from .services import get_country_features
+from .predict import predict_revenue, predict_success
+from .calculations import calculate_co2_impact, calculate_equivalencies
+from .context import generate_context
+from .errors import (
+    raise_validation_error, raise_not_found_error, raise_service_unavailable_error,
+    raise_internal_error
+)
 
 router = APIRouter(prefix="/simulations", tags=["simulations"])
 
 def _run_prediction(request: PredictionRequest) -> PredictionResponse:
-    from fastapi import HTTPException
     from .schemas import YearProjection
     
     if request.carbon_price_usd <= 0:
-        raise HTTPException(400, "Carbon price must be positive")
+        raise_validation_error(
+            "Carbon price must be greater than 0",
+            field="carbon_price_usd",
+            details={"min_value": 0.01}
+        )
+    
+    if request.carbon_price_usd > 1000:
+        raise_validation_error(
+            "Carbon price cannot exceed $1,000 per tonne. Please enter a realistic value.",
+            field="carbon_price_usd",
+            details={"max_value": 1000}
+        )
+    
     if not (10 <= request.coverage_percent <= 90):
-        raise HTTPException(400, "Coverage must be between 10-90%")
+        raise_validation_error(
+            "Coverage must be between 10% and 90%",
+            field="coverage_percent",
+            details={"min_value": 10, "max_value": 90}
+        )
+    
+    if request.year < 2000 or request.year > 2100:
+        raise_validation_error(
+            "Year must be between 2000 and 2100",
+            field="year",
+            details={"min_value": 2000, "max_value": 2100}
+        )
+    
+    if request.projection_years < 1 or request.projection_years > 50:
+        raise_validation_error(
+            "Projection duration must be between 1 and 50 years",
+            field="projection_years",
+            details={"min_value": 1, "max_value": 50}
+        )
+    
+    if not request.country or not request.country.strip():
+        raise_validation_error(
+            "Please select a country",
+            field="country"
+        )
+    
+    if not request.policy_type or not request.policy_type.strip():
+        raise_validation_error(
+            "Please select a policy type",
+            field="policy_type"
+        )
 
     try:
         country_features = get_country_features(request.country, request.year)
     except ValueError as e:
-        raise HTTPException(400, f"Country data not available: {str(e)}")
+        raise_validation_error(
+            f"Data is not available for {request.country} for the year {request.year}. Please try a different country or year.",
+            field="country",
+            details={"country": request.country, "year": request.year}
+        )
 
     region = country_features['region']
     fossil_fuel_pct = country_features['fossil_fuel_pct']
@@ -267,7 +321,14 @@ def save_simulation(
         input_params = PredictionRequest(**input_body)
         results = PredictionResponse(**results_data)
     except ValidationError as e:
-        raise HTTPException(status_code=400, detail=f"Invalid request data: {str(e)}")
+        error_messages = []
+        for err in e.errors():
+            field = ".".join(str(loc) for loc in err["loc"])
+            error_messages.append(f"{field}: {err['msg']}")
+        raise_validation_error(
+            "Invalid simulation data. " + "; ".join(error_messages[:3]),
+            details={"validation_errors": e.errors()}
+        )
     
     input_dict = input_params.dict()
     results_dict = results.dict()
@@ -282,9 +343,16 @@ def save_simulation(
         results=results_dict
     )
     
-    db.add(simulation)
-    db.commit()
-    db.refresh(simulation)
+    try:
+        db.add(simulation)
+        db.commit()
+        db.refresh(simulation)
+    except OperationalError as e:
+        db.rollback()
+        raise_service_unavailable_error(
+            "Unable to save simulation due to a database connection issue. Please try again in a moment.",
+            service="database"
+        )
     
     return SimulationDetail(
         id=simulation.id,
@@ -300,9 +368,16 @@ def get_user_simulations(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    simulations = db.query(Simulation).filter(
-        Simulation.user_id == current_user.id
-    ).order_by(Simulation.created_at.desc()).all()
+    try:
+        simulations = db.query(Simulation).filter(
+            Simulation.user_id == current_user.id
+        ).order_by(Simulation.created_at.desc()).all()
+    except OperationalError as e:
+        db.rollback()
+        raise_service_unavailable_error(
+            "Unable to load your simulations due to a database connection issue. Please try again in a moment.",
+            service="database"
+        )
     
     summaries = []
     for sim in simulations:
@@ -329,15 +404,22 @@ def get_simulation(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    simulation = db.query(Simulation).filter(
-        Simulation.id == simulation_id,
-        Simulation.user_id == current_user.id
-    ).first()
+    try:
+        simulation = db.query(Simulation).filter(
+            Simulation.id == simulation_id,
+            Simulation.user_id == current_user.id
+        ).first()
+    except OperationalError as e:
+        db.rollback()
+        raise_service_unavailable_error(
+            "Unable to connect to the database. Please try again in a moment.",
+            service="database"
+        )
     
     if not simulation:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Simulation not found"
+        raise_not_found_error(
+            "Simulation not found. It may have been deleted or you don't have permission to view it.",
+            resource="simulation"
         )
     
     return SimulationDetail(
@@ -364,16 +446,34 @@ def update_simulation(
     ).first()
     
     if not simulation:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Simulation not found"
+        raise_not_found_error(
+            "Simulation not found. It may have been deleted or you don't have permission to view it.",
+            resource="simulation"
         )
     
     policy_name = body.get('policy_name')
     if policy_name is not None:
+        if not isinstance(policy_name, str) or not policy_name.strip():
+            raise_validation_error(
+                "Policy name cannot be empty",
+                field="policy_name"
+            )
+        if len(policy_name) > 200:
+            raise_validation_error(
+                "Policy name cannot exceed 200 characters",
+                field="policy_name",
+                details={"max_length": 200}
+            )
         simulation.policy_name = policy_name
-        db.commit()
-        db.refresh(simulation)
+        try:
+            db.commit()
+            db.refresh(simulation)
+        except OperationalError as e:
+            db.rollback()
+            raise_service_unavailable_error(
+                "Unable to update simulation name due to a database connection issue. Please try again in a moment.",
+                service="database"
+            )
     
     return SimulationDetail(
         id=simulation.id,
@@ -396,13 +496,20 @@ def delete_simulation(
     ).first()
     
     if not simulation:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Simulation not found"
+        raise_not_found_error(
+            "Simulation not found. It may have been deleted or you don't have permission to delete it.",
+            resource="simulation"
         )
     
-    db.delete(simulation)
-    db.commit()
+    try:
+        db.delete(simulation)
+        db.commit()
+    except OperationalError as e:
+        db.rollback()
+        raise_service_unavailable_error(
+            "Unable to delete simulation due to a database connection issue. Please try again in a moment.",
+            service="database"
+        )
     
     return None
 
@@ -416,12 +523,22 @@ def compare_simulations(
     simulation_2 = None
     
     if request.simulation_id_1:
-        sim = db.query(Simulation).filter(
-            Simulation.id == request.simulation_id_1,
-            Simulation.user_id == current_user.id
-        ).first()
+        try:
+            sim = db.query(Simulation).filter(
+                Simulation.id == request.simulation_id_1,
+                Simulation.user_id == current_user.id
+            ).first()
+        except OperationalError as e:
+            db.rollback()
+            raise_service_unavailable_error(
+                "Unable to load simulation due to a database connection issue. Please try again in a moment.",
+                service="database"
+            )
         if not sim:
-            raise HTTPException(status_code=404, detail="Simulation 1 not found")
+            raise_not_found_error(
+                "First simulation not found. It may have been deleted or you don't have permission to view it.",
+                resource="simulation"
+            )
         simulation_1 = {
             "input": PredictionRequest(**sim.input_params),
             "results": PredictionResponse(**sim.results),
@@ -437,15 +554,28 @@ def compare_simulations(
             "policy_name": generate_policy_name(request.new_simulation_1.dict())
         }
     else:
-        raise HTTPException(status_code=400, detail="Either simulation_id_1 or new_simulation_1 must be provided")
+        raise_validation_error(
+            "Please provide either a saved simulation or create a new simulation for the first policy",
+            field="simulation_id_1"
+        )
     
     if request.simulation_id_2:
-        sim = db.query(Simulation).filter(
-            Simulation.id == request.simulation_id_2,
-            Simulation.user_id == current_user.id
-        ).first()
+        try:
+            sim = db.query(Simulation).filter(
+                Simulation.id == request.simulation_id_2,
+                Simulation.user_id == current_user.id
+            ).first()
+        except OperationalError as e:
+            db.rollback()
+            raise_service_unavailable_error(
+                "Unable to load simulation due to a database connection issue. Please try again in a moment.",
+                service="database"
+            )
         if not sim:
-            raise HTTPException(status_code=404, detail="Simulation 2 not found")
+            raise_not_found_error(
+                "Second simulation not found. It may have been deleted or you don't have permission to view it.",
+                resource="simulation"
+            )
         simulation_2 = {
             "input": PredictionRequest(**sim.input_params),
             "results": PredictionResponse(**sim.results),
@@ -461,7 +591,10 @@ def compare_simulations(
             "policy_name": generate_policy_name(request.new_simulation_2.dict())
         }
     else:
-        raise HTTPException(status_code=400, detail="Either simulation_id_2 or new_simulation_2 must be provided")
+        raise_validation_error(
+            "Please provide either a saved simulation or create a new simulation for the second policy",
+            field="simulation_id_2"
+        )
     
     return {
         "simulation_1": simulation_1,

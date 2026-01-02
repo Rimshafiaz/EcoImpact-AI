@@ -35,15 +35,76 @@ app.add_middleware(
 
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from pydantic import ValidationError
+import logging
+
+logger = logging.getLogger(__name__)
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc: RequestValidationError):
+    errors = exc.errors()
+    field_errors = {}
+    for error in errors:
+        field = ".".join(str(loc) for loc in error["loc"] if loc != "body")
+        field_errors[field] = error["msg"]
+    
+    first_error = errors[0] if errors else None
+    field_name = ".".join(str(loc) for loc in first_error["loc"] if loc != "body") if first_error else "unknown"
+    message = first_error["msg"] if first_error else "Invalid input data"
+    
+    return JSONResponse(
+        status_code=400,
+        content={
+            "error": {
+                "code": "VALIDATION_ERROR",
+                "message": f"Please check your input: {message}",
+                "field": field_name,
+                "details": field_errors
+            }
+        }
+    )
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request, exc: HTTPException):
+    if isinstance(exc.detail, dict) and "error" in exc.detail:
+        return JSONResponse(status_code=exc.status_code, content=exc.detail)
+    
+    error_code_map = {
+        400: "BAD_REQUEST",
+        401: "UNAUTHORIZED",
+        403: "FORBIDDEN",
+        404: "NOT_FOUND",
+        409: "CONFLICT",
+        500: "INTERNAL_ERROR",
+        503: "SERVICE_UNAVAILABLE"
+    }
+    
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "error": {
+                "code": error_code_map.get(exc.status_code, "UNKNOWN_ERROR"),
+                "message": str(exc.detail) if exc.detail else "An error occurred",
+                "details": {}
+            }
+        }
+    )
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc):
-    print(f"[GLOBAL ERROR] {type(exc).__name__}: {str(exc)}")
+    logger.error(f"Unhandled exception: {type(exc).__name__}: {str(exc)}", exc_info=True)
     import traceback
     traceback.print_exc()
+    
     return JSONResponse(
         status_code=500,
-        content={"detail": f"Internal server error: {str(exc)}"}
+        content={
+            "error": {
+                "code": "INTERNAL_ERROR",
+                "message": "An unexpected error occurred. Please try again later.",
+                "details": {}
+            }
+        }
     )
 
 app.include_router(auth_router)

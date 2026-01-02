@@ -1,16 +1,25 @@
 import { useState } from 'react';
 import ResultsDisplay from '../../simulate/components/ResultsDisplay';
 import { updateSimulationName } from '../../../utils/api/simulations';
+import { exportToCSV, exportToPDF } from '../../../utils/export';
+import { useNotificationContext } from '../../../App';
+import { extractErrorMessage } from '../../../utils/errorHandler';
 
 export default function SimulationDetail({ simulation, onBack, onUpdate }) {
+  const { showError, showSuccess } = useNotificationContext();
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(simulation.policy_name || '');
 
   const handleSave = async () => {
     if (editName.trim()) {
-      await updateSimulationName(simulation.id, editName.trim());
-      if (onUpdate) onUpdate();
-      setIsEditing(false);
+      try {
+        await updateSimulationName(simulation.id, editName.trim());
+        if (onUpdate) onUpdate();
+        setIsEditing(false);
+        showSuccess('Simulation name updated successfully', 2000);
+      } catch (err) {
+        showError(extractErrorMessage(err));
+      }
     }
   };
 
@@ -23,32 +32,60 @@ export default function SimulationDetail({ simulation, onBack, onUpdate }) {
         >
           ← Back to History
         </button>
-        {!isEditing ? (
+        <div className="flex gap-3 items-center">
           <button
-            onClick={() => setIsEditing(true)}
-            className="text-blue-400 hover:text-blue-300 transition-colors text-sm"
+            onClick={() => {
+              try {
+                exportToCSV(simulation);
+                showSuccess('CSV exported successfully', 2000);
+              } catch (error) {
+                showError(extractErrorMessage(error));
+              }
+            }}
+            className="px-4 py-2 bg-[rgba(26,38,30,0.8)] border border-[rgba(0,255,111,0.3)] text-[#00FF6F] rounded-lg hover:bg-[rgba(0,255,111,0.1)] transition-colors text-sm font-semibold"
           >
-            Edit Name
+            Export CSV
           </button>
-        ) : (
-          <div className="flex gap-2">
+          <button
+            onClick={async () => {
+              try {
+                await exportToPDF(simulation);
+                showSuccess('PDF exported successfully', 2000);
+              } catch (error) {
+                showError(extractErrorMessage(error));
+              }
+            }}
+            className="px-4 py-2 bg-[rgba(26,38,30,0.8)] border border-[rgba(0,255,111,0.3)] text-[#00FF6F] rounded-lg hover:bg-[rgba(0,255,111,0.1)] transition-colors text-sm font-semibold"
+          >
+            Export PDF
+          </button>
+          {!isEditing ? (
             <button
-              onClick={handleSave}
-              className="text-green-400 hover:text-green-300 transition-colors text-sm"
+              onClick={() => setIsEditing(true)}
+              className="text-blue-400 hover:text-blue-300 transition-colors text-sm"
             >
-              Save
+              Edit Name
             </button>
-            <button
-              onClick={() => {
-                setIsEditing(false);
-                setEditName(simulation.policy_name || '');
-              }}
-              className="text-red-400 hover:text-red-300 transition-colors text-sm"
-            >
-              Cancel
-            </button>
-          </div>
-        )}
+          ) : (
+            <div className="flex gap-2">
+              <button
+                onClick={handleSave}
+                className="text-green-400 hover:text-green-300 transition-colors text-sm"
+              >
+                Save
+              </button>
+              <button
+                onClick={() => {
+                  setIsEditing(false);
+                  setEditName(simulation.policy_name || '');
+                }}
+                className="text-red-400 hover:text-red-300 transition-colors text-sm"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+        </div>
       </div>
       <div className="mb-8">
         {isEditing ? (

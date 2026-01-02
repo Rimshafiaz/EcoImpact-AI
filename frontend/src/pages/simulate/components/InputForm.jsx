@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import { getAvailableCountries } from '../../../utils/api/predictions';
+import { useNotificationContext } from '../../../App';
+import { extractErrorMessage } from '../../../utils/errorHandler';
 
 export default function InputForm({ onSubmit, loading, hasResults }) {
+  const { showError } = useNotificationContext();
   const [formData, setFormData] = useState({
     country: '',
     policyType: 'Carbon tax',
@@ -33,8 +36,11 @@ export default function InputForm({ onSubmit, loading, hasResults }) {
   useEffect(() => {
     getAvailableCountries()
       .then(setCountries)
-      .catch(err => console.error('Failed to load countries:', err));
-  }, []);
+      .catch(err => {
+        showError(extractErrorMessage(err));
+        console.error('Failed to load countries:', err);
+      });
+  }, [showError]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -58,6 +64,9 @@ export default function InputForm({ onSubmit, loading, hasResults }) {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    if (errors[name]) {
+      setErrors({ ...errors, [name]: '' });
+    }
   };
 
   const handleCountrySelect = (country) => {
@@ -86,13 +95,33 @@ export default function InputForm({ onSubmit, loading, hasResults }) {
     return option ? option.label : formData.policyType;
   };
 
+  const [errors, setErrors] = useState({});
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!formData.country || !formData.carbonPrice) {
-      alert('Please fill in all required fields');
-      return;
+    const newErrors = {};
+    
+    if (!formData.country || !formData.country.trim()) {
+      newErrors.country = 'Please select a country';
     }
-    onSubmit(formData);
+    
+    if (!formData.carbonPrice || parseFloat(formData.carbonPrice) <= 0) {
+      newErrors.carbonPrice = 'Please enter a valid carbon price greater than 0';
+    }
+    
+    if (parseFloat(formData.carbonPrice) > 1000) {
+      newErrors.carbonPrice = 'Carbon price cannot exceed $1,000 per tonne';
+    }
+    
+    if (!formData.coverage || parseFloat(formData.coverage) < 10 || parseFloat(formData.coverage) > 90) {
+      newErrors.coverage = 'Coverage must be between 10% and 90%';
+    }
+    
+    setErrors(newErrors);
+    
+    if (Object.keys(newErrors).length === 0) {
+      onSubmit(formData);
+    }
   };
 
   return (
@@ -135,18 +164,25 @@ export default function InputForm({ onSubmit, loading, hasResults }) {
 
           <div className="bg-[rgba(26,38,30,0.8)] border border-[rgba(0,255,111,0.15)] rounded-xl p-6 flex flex-col gap-4 transition-all duration-300 hover:border-[rgba(0,255,111,0.3)] hover:shadow-[0_5px_20px_rgba(0,255,111,0.1)]">
             <label className="text-[#00FF6F] text-sm font-semibold uppercase tracking-wider">
-              Carbon Price Rate
+              {formData.policyType === 'Carbon tax' ? 'Tax Rate (USD/tonne)' : 'Carbon Price (USD/tonne)'}
             </label>
             <input
               type="number"
               name="carbonPrice"
               value={formData.carbonPrice}
               onChange={handleChange}
-              placeholder="Enter rate"
+              placeholder={formData.policyType === 'Carbon tax' ? 'Enter tax rate' : 'Enter price'}
               min="1"
               step="0.01"
-              className="w-full px-4 py-3 bg-[rgba(10,13,11,0.8)] border border-[rgba(255,255,255,0.1)] rounded-lg text-white text-base placeholder-[rgba(255,255,255,0.4)] transition-all duration-300 focus:outline-none focus:border-[#00FF6F] focus:bg-[rgba(10,13,11,0.95)] focus:shadow-[0_0_0_3px_rgba(0,255,111,0.1)]"
+              className={`w-full px-4 py-3 bg-[rgba(10,13,11,0.8)] border rounded-lg text-white text-base placeholder-[rgba(255,255,255,0.4)] transition-all duration-300 focus:outline-none focus:bg-[rgba(10,13,11,0.95)] focus:shadow-[0_0_0_3px_rgba(0,255,111,0.1)] ${
+                errors.carbonPrice
+                  ? 'border-red-500 focus:border-red-500'
+                  : 'border-[rgba(255,255,255,0.1)] focus:border-[#00FF6F]'
+              }`}
             />
+            {errors.carbonPrice && (
+              <p className="text-red-400 text-sm mt-1">{errors.carbonPrice}</p>
+            )}
           </div>
 
           <div className="bg-[rgba(26,38,30,0.8)] border border-[rgba(0,255,111,0.15)] rounded-xl p-6 flex flex-col gap-4 transition-all duration-300 hover:border-[rgba(0,255,111,0.3)] hover:shadow-[0_5px_20px_rgba(0,255,111,0.1)]">
@@ -163,7 +199,11 @@ export default function InputForm({ onSubmit, loading, hasResults }) {
                 }}
                 onFocus={() => setShowDropdown(true)}
                 placeholder="Select Country"
-                className="w-full px-4 py-3 pr-10 bg-[rgba(10,13,11,0.8)] border border-[rgba(255,255,255,0.1)] rounded-lg text-white text-base placeholder-[rgba(255,255,255,0.4)] transition-all duration-300 focus:outline-none focus:border-[#00FF6F] focus:bg-[rgba(10,13,11,0.95)] focus:shadow-[0_0_0_3px_rgba(0,255,111,0.1)] cursor-pointer"
+                className={`w-full px-4 py-3 pr-10 bg-[rgba(10,13,11,0.8)] border rounded-lg text-white text-base placeholder-[rgba(255,255,255,0.4)] transition-all duration-300 focus:outline-none focus:bg-[rgba(10,13,11,0.95)] focus:shadow-[0_0_0_3px_rgba(0,255,111,0.1)] cursor-pointer ${
+                  errors.country
+                    ? 'border-red-500 focus:border-red-500'
+                    : 'border-[rgba(255,255,255,0.1)] focus:border-[#00FF6F]'
+                }`}
               />
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[rgba(255,255,255,0.6)] text-xs pointer-events-none select-none">
                 {showDropdown ? '▲' : '▼'}
@@ -182,6 +222,9 @@ export default function InputForm({ onSubmit, loading, hasResults }) {
                 </div>
               )}
             </div>
+            {errors.country && (
+              <p className="text-red-400 text-sm mt-1">{errors.country}</p>
+            )}
           </div>
         </div>
 
@@ -221,7 +264,7 @@ export default function InputForm({ onSubmit, loading, hasResults }) {
               Coverage ({formData.coverage}%)
             </label>
             <p className="text-[rgba(255,255,255,0.4)] text-xs font-normal leading-relaxed mb-2">
-              EU ETS: ~45%, California: ~80%, Typical tax: 20-40%
+              Percentage of total emissions covered by the policy
             </p>
             <input
               type="range"
@@ -230,11 +273,16 @@ export default function InputForm({ onSubmit, loading, hasResults }) {
               onChange={handleChange}
               min="10"
               max="90"
-              className="w-full h-2 bg-[rgba(10,13,11,0.6)] rounded-lg appearance-none cursor-pointer slider"
+              className={`w-full h-2 bg-[rgba(10,13,11,0.6)] rounded-lg appearance-none cursor-pointer slider ${
+                errors.coverage ? 'border-red-500' : ''
+              }`}
               style={{
                 background: `linear-gradient(to right, #00FF6F 0%, #00FF6F ${((formData.coverage - 10) / 80) * 100}%, rgba(255,255,255,0.1) ${((formData.coverage - 10) / 80) * 100}%, rgba(255,255,255,0.1) 100%)`
               }}
             />
+            {errors.coverage && (
+              <p className="text-red-400 text-sm mt-1">{errors.coverage}</p>
+            )}
             <div className="flex justify-between text-xs text-[rgba(255,255,255,0.4)] mt-1">
               <span>10%</span>
               <span>90%</span>

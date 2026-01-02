@@ -5,34 +5,41 @@ import ResultsDisplay from './components/ResultsDisplay';
 import { predictPolicy } from '../../utils/api/predictions';
 import { saveSimulation } from '../../utils/api/simulations';
 import { isAuthenticated } from '../../utils/api/auth';
+import { useNotificationContext } from '../../App';
+import { extractErrorMessage } from '../../utils/errorHandler';
 import cyberEarthImage from '../../assets/cyberearth.png';
 
 export default function Simulate() {
   const navigate = useNavigate();
+  const { showError, showSuccess } = useNotificationContext();
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState(null);
-  const [error, setError] = useState(null);
   const [inputData, setInputData] = useState(null);
 
   const handleSubmit = async (formData) => {
+    if (!isAuthenticated()) {
+      showError('Please sign up or log in to generate simulations');
+      navigate('/signup', { state: { from: { pathname: '/simulate' } } });
+      return;
+    }
+
     setLoading(true);
-    setError(null);
+    setResults(null);
     setInputData(formData);
 
     try {
       const predictions = await predictPolicy(formData);
       setResults(predictions);
       
-      if (isAuthenticated()) {
-        try {
-          await saveSimulation(formData, predictions);
-        } catch (saveErr) {
-          console.error('Failed to save simulation:', saveErr);
-        }
+      try {
+        await saveSimulation(formData, predictions);
+        showSuccess('Simulation completed and saved successfully!', 2000);
+      } catch (saveErr) {
+        showSuccess('Simulation completed successfully!', 2000);
+        showError(extractErrorMessage(saveErr));
       }
     } catch (err) {
-      setError(err.message || 'Failed to generate predictions');
-      console.error('Prediction error:', err);
+      showError(extractErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -52,13 +59,6 @@ export default function Simulate() {
       <div className="relative z-10 w-full h-full overflow-y-auto px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 py-8 md:py-12 lg:py-16 xl:py-20">
         <div className="w-full">
           <InputForm onSubmit={handleSubmit} loading={loading} hasResults={!!results} />
-
-          {error && (
-            <div className="mt-6 bg-red-900/20 border border-red-500 rounded-lg p-4 text-center max-w-4xl mx-auto">
-              <p className="text-red-400">{error}</p>
-            </div>
-          )}
-
           {results && <ResultsDisplay results={results} inputData={inputData} />}
         </div>
       </div>
