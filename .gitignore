@@ -81,7 +81,7 @@ backend/migrate_*.py
 *_backup_*.csv
 *.backup
 *.bak
-
+FRIEND_SETUP.md
 # Dataset large files (keep structure but not large CSVs)
 dataset/processed/*_backup_*.csv
 
