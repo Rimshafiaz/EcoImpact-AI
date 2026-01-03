@@ -6,16 +6,35 @@ import '../../index.css';
 export default function Home() {
   const [currentWord, setCurrentWord] = useState(0);
   const navigate = useNavigate();
-  
+
   const words = ['FUTURE', 'مستقبل', '未来'];
-  
+
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentWord((prev) => (prev + 1) % words.length);
     }, 3000);
-    
+
     return () => clearInterval(interval);
   }, []);
+
+  const LeafSVG = ({ color = '#2D7A4F', size = 40 }) => (
+    <svg width={size} height={size} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M8 32C8 32 12 20 20 12C28 4 36 2 36 2C36 2 34 10 26 18C18 26 8 32 8 32Z" fill={color} fillOpacity="0.6"/>
+      <path d="M20 12C20 12 18 20 14 26C10 32 8 32 8 32" stroke={color} strokeWidth="1.5" strokeLinecap="round" fillOpacity="0.8"/>
+    </svg>
+  );
+
+  const generateStars = () => {
+    const stars = [];
+    for (let i = 0; i < 50; i++) {
+      stars.push({
+        left: `${Math.random() * 100}%`,
+        top: `${Math.random() * 100}%`,
+        delay: `${Math.random() * 3}s`
+      });
+    }
+    return stars;
+  };
 
   const animationLines = [
     'Revenue Projections',
@@ -44,8 +63,25 @@ export default function Home() {
       <section className="hero">
         <div className="hero-background">
           <div className="hero-radial-gradient"></div>
+          {generateStars().map((star, i) => (
+            <div
+              key={i}
+              className="star-twinkle"
+              style={{ left: star.left, top: star.top, animationDelay: star.delay }}
+            />
+          ))}
         </div>
-        
+
+        <div className="floating-leaf float-2">
+          <LeafSVG color="#4A90A4" size={50} />
+        </div>
+        <div className="floating-leaf across-2">
+          <LeafSVG color="#4A90A4" size={40} />
+        </div>
+        <div className="floating-leaf across-3">
+          <LeafSVG color="#2D7A4F" size={45} />
+        </div>
+
         <div className="hero-content">
           <div className="hero-main">
             <h1 className="hero-title">

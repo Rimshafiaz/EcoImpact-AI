@@ -2,6 +2,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import logo from '../assets/logo.png';
 import { isAuthenticated, getCurrentUser, logout as authLogout } from '../utils/api/auth';
+import ThemeSwitcher from './ThemeSwitcher';
 import '../index.css';
 
 export default function Navbar() {
@@ -103,6 +104,7 @@ export default function Navbar() {
               )}
             </div>
           )}
+          <ThemeSwitcher />
         </div>
       </div>
       {showUserMenu && (

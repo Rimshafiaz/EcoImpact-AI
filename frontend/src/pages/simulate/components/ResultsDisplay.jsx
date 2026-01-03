@@ -10,25 +10,24 @@ export default function ResultsDisplay({ results, inputData }) {
 
   return (
     <div className="mt-12 w-full max-w-7xl mx-auto min-w-0">
-      {/* Header Section */}
       <div className="mb-8 animate-fade-in">
-        <h2 className="text-[#00FF6F] text-3xl md:text-4xl font-bold mb-3 uppercase tracking-wide">
+        <h2 className="results-header-title">
           Simulation Results
         </h2>
-        <div className="flex flex-wrap gap-3 text-sm text-gray-400">
-          <span className="px-3 py-1 bg-[rgba(0,255,111,0.1)] rounded-full border border-[rgba(0,255,111,0.2)]">
+        <div className="flex flex-wrap gap-3 text-sm">
+          <span className="results-tag">
             {inputData?.country || 'N/A'}
           </span>
-          <span className="px-3 py-1 bg-[rgba(0,255,111,0.1)] rounded-full border border-[rgba(0,255,111,0.2)]">
+          <span className="results-tag">
             {inputData?.policyType || 'N/A'}
           </span>
-          <span className="px-3 py-1 bg-[rgba(0,255,111,0.1)] rounded-full border border-[rgba(0,255,111,0.2)]">
+          <span className="results-tag">
             ${inputData?.carbonPrice || 'N/A'}/tonne
           </span>
-          <span className="px-3 py-1 bg-[rgba(0,255,111,0.1)] rounded-full border border-[rgba(0,255,111,0.2)]">
+          <span className="results-tag">
             {inputData?.coverage || 'N/A'}% coverage
           </span>
-          <span className="px-3 py-1 bg-[rgba(0,255,111,0.1)] rounded-full border border-[rgba(0,255,111,0.2)]">
+          <span className="results-tag">
             {inputData?.duration || 'N/A'} years
           </span>
         </div>

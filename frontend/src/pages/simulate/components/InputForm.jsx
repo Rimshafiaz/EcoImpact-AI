@@ -126,33 +126,33 @@ export default function InputForm({ onSubmit, loading, hasResults }) {
 
   return (
     <div className="w-full">
-      <h2 className="text-[#00FF6F] text-5xl font-bold mb-10 uppercase tracking-wide">
+      <h2 className="simulate-title">
         Set Input Parameters
       </h2>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-10">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="bg-[rgba(26,38,30,0.8)] border border-[rgba(0,255,111,0.15)] rounded-xl p-6 flex flex-col gap-4 transition-all duration-300 hover:border-[rgba(0,255,111,0.3)] hover:shadow-[0_5px_20px_rgba(0,255,111,0.1)]">
-            <label className="text-[#00FF6F] text-sm font-semibold uppercase tracking-wider">
+          <div className="simulate-card">
+            <label className="simulate-label">
               Duration
             </label>
             <div className="relative dropdown-container">
               <div
                 onClick={() => setShowDurationDropdown(!showDurationDropdown)}
-                className="w-full px-4 py-3 pr-10 bg-[rgba(10,13,11,0.8)] border border-[rgba(255,255,255,0.1)] rounded-lg text-white text-base transition-all duration-300 focus:outline-none focus:border-[#00FF6F] focus:bg-[rgba(10,13,11,0.95)] focus:shadow-[0_0_0_3px_rgba(0,255,111,0.1)] cursor-pointer"
+                className="simulate-dropdown-trigger"
               >
                 {getDurationLabel()}
               </div>
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[rgba(255,255,255,0.6)] text-xs pointer-events-none select-none">
+              <span className="simulate-dropdown-arrow">
                 {showDurationDropdown ? '▲' : '▼'}
               </span>
               {showDurationDropdown && (
-                <div className="absolute z-50 w-full mt-2 bg-[rgba(26,38,30,0.95)] border border-[rgba(0,255,111,0.3)] rounded-lg overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.5)] backdrop-blur-md">
+                <div className="simulate-dropdown-menu">
                   {durationOptions.map((option) => (
                     <div
                       key={option.value}
                       onClick={() => handleDurationSelect(option.value)}
-                      className="px-4 py-3 text-white text-base cursor-pointer transition-all duration-200 border-b border-[rgba(255,255,255,0.05)] last:border-b-0 hover:bg-[rgba(0,255,111,0.1)] hover:text-[#00FF6F]"
+                      className="simulate-dropdown-item"
                     >
                       {option.label}
                     </div>
@@ -162,8 +162,8 @@ export default function InputForm({ onSubmit, loading, hasResults }) {
             </div>
           </div>
 
-          <div className="bg-[rgba(26,38,30,0.8)] border border-[rgba(0,255,111,0.15)] rounded-xl p-6 flex flex-col gap-4 transition-all duration-300 hover:border-[rgba(0,255,111,0.3)] hover:shadow-[0_5px_20px_rgba(0,255,111,0.1)]">
-            <label className="text-[#00FF6F] text-sm font-semibold uppercase tracking-wider">
+          <div className="simulate-card">
+            <label className="simulate-label">
               {formData.policyType === 'Carbon tax' ? 'Tax Rate (USD/tonne)' : 'Carbon Price (USD/tonne)'}
             </label>
             <input
@@ -174,19 +174,15 @@ export default function InputForm({ onSubmit, loading, hasResults }) {
               placeholder={formData.policyType === 'Carbon tax' ? 'Enter tax rate' : 'Enter price'}
               min="1"
               step="0.01"
-              className={`w-full px-4 py-3 bg-[rgba(10,13,11,0.8)] border rounded-lg text-white text-base placeholder-[rgba(255,255,255,0.4)] transition-all duration-300 focus:outline-none focus:bg-[rgba(10,13,11,0.95)] focus:shadow-[0_0_0_3px_rgba(0,255,111,0.1)] ${
-                errors.carbonPrice
-                  ? 'border-red-500 focus:border-red-500'
-                  : 'border-[rgba(255,255,255,0.1)] focus:border-[#00FF6F]'
-              }`}
+              className={`simulate-input ${errors.carbonPrice ? 'simulate-input-error' : ''}`}
             />
             {errors.carbonPrice && (
-              <p className="text-red-400 text-sm mt-1">{errors.carbonPrice}</p>
+              <p className="simulate-error-text">{errors.carbonPrice}</p>
             )}
           </div>
 
-          <div className="bg-[rgba(26,38,30,0.8)] border border-[rgba(0,255,111,0.15)] rounded-xl p-6 flex flex-col gap-4 transition-all duration-300 hover:border-[rgba(0,255,111,0.3)] hover:shadow-[0_5px_20px_rgba(0,255,111,0.1)]">
-            <label className="text-[#00FF6F] text-sm font-semibold uppercase tracking-wider">
+          <div className="simulate-card">
+            <label className="simulate-label">
               Country
             </label>
             <div className="relative dropdown-container">
@@ -199,22 +195,18 @@ export default function InputForm({ onSubmit, loading, hasResults }) {
                 }}
                 onFocus={() => setShowDropdown(true)}
                 placeholder="Select Country"
-                className={`w-full px-4 py-3 pr-10 bg-[rgba(10,13,11,0.8)] border rounded-lg text-white text-base placeholder-[rgba(255,255,255,0.4)] transition-all duration-300 focus:outline-none focus:bg-[rgba(10,13,11,0.95)] focus:shadow-[0_0_0_3px_rgba(0,255,111,0.1)] cursor-pointer ${
-                  errors.country
-                    ? 'border-red-500 focus:border-red-500'
-                    : 'border-[rgba(255,255,255,0.1)] focus:border-[#00FF6F]'
-                }`}
+                className={`simulate-dropdown-trigger ${errors.country ? 'simulate-input-error' : ''}`}
               />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[rgba(255,255,255,0.6)] text-xs pointer-events-none select-none">
+              <span className="simulate-dropdown-arrow">
                 {showDropdown ? '▲' : '▼'}
               </span>
               {showDropdown && filteredCountries.length > 0 && (
-                <div className="absolute z-50 w-full mt-2 bg-[rgba(26,38,30,0.95)] border border-[rgba(0,255,111,0.3)] rounded-lg max-h-60 overflow-y-auto shadow-[0_10px_30px_rgba(0,0,0,0.5)] backdrop-blur-md">
+                <div className="simulate-dropdown-menu max-h-60 overflow-y-auto">
                   {filteredCountries.map((country) => (
                     <div
                       key={country}
                       onClick={() => handleCountrySelect(country)}
-                      className="px-4 py-3 text-white text-base cursor-pointer transition-all duration-200 border-b border-[rgba(255,255,255,0.05)] last:border-b-0 hover:bg-[rgba(0,255,111,0.1)] hover:text-[#00FF6F]"
+                      className="simulate-dropdown-item"
                     >
                       {country}
                     </div>
@@ -223,33 +215,33 @@ export default function InputForm({ onSubmit, loading, hasResults }) {
               )}
             </div>
             {errors.country && (
-              <p className="text-red-400 text-sm mt-1">{errors.country}</p>
+              <p className="simulate-error-text">{errors.country}</p>
             )}
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="bg-[rgba(26,38,30,0.8)] border border-[rgba(0,255,111,0.15)] rounded-xl p-6 flex flex-col gap-4 transition-all duration-300 hover:border-[rgba(0,255,111,0.3)] hover:shadow-[0_5px_20px_rgba(0,255,111,0.1)]">
-            <label className="text-[#00FF6F] text-sm font-semibold uppercase tracking-wider">
+          <div className="simulate-card">
+            <label className="simulate-label">
               Policy Type
             </label>
             <div className="relative dropdown-container">
               <div
                 onClick={() => setShowPolicyTypeDropdown(!showPolicyTypeDropdown)}
-                className="w-full px-4 py-3 pr-10 bg-[rgba(10,13,11,0.8)] border border-[rgba(255,255,255,0.1)] rounded-lg text-white text-base transition-all duration-300 focus:outline-none focus:border-[#00FF6F] focus:bg-[rgba(10,13,11,0.95)] focus:shadow-[0_0_0_3px_rgba(0,255,111,0.1)] cursor-pointer"
+                className="simulate-dropdown-trigger"
               >
                 {getPolicyTypeLabel()}
               </div>
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[rgba(255,255,255,0.6)] text-xs pointer-events-none select-none">
+              <span className="simulate-dropdown-arrow">
                 {showPolicyTypeDropdown ? '▲' : '▼'}
               </span>
               {showPolicyTypeDropdown && (
-                <div className="absolute z-50 w-full mt-2 bg-[rgba(26,38,30,0.95)] border border-[rgba(0,255,111,0.3)] rounded-lg overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.5)] backdrop-blur-md">
+                <div className="simulate-dropdown-menu">
                   {policyTypeOptions.map((option) => (
                     <div
                       key={option.value}
                       onClick={() => handlePolicyTypeSelect(option.value)}
-                      className="px-4 py-3 text-white text-base cursor-pointer transition-all duration-200 border-b border-[rgba(255,255,255,0.05)] last:border-b-0 hover:bg-[rgba(0,255,111,0.1)] hover:text-[#00FF6F]"
+                      className="simulate-dropdown-item"
                     >
                       {option.label}
                     </div>
@@ -259,11 +251,11 @@ export default function InputForm({ onSubmit, loading, hasResults }) {
             </div>
           </div>
 
-          <div className="bg-[rgba(26,38,30,0.8)] border border-[rgba(0,255,111,0.15)] rounded-xl p-6 flex flex-col gap-4 transition-all duration-300 hover:border-[rgba(0,255,111,0.3)] hover:shadow-[0_5px_20px_rgba(0,255,111,0.1)]">
-            <label className="text-[#00FF6F] text-sm font-semibold uppercase tracking-wider">
+          <div className="simulate-card">
+            <label className="simulate-label">
               Coverage ({formData.coverage}%)
             </label>
-            <p className="text-[rgba(255,255,255,0.4)] text-xs font-normal leading-relaxed mb-2">
+            <p className="simulate-helper-text">
               Percentage of total emissions covered by the policy
             </p>
             <input
@@ -273,17 +265,15 @@ export default function InputForm({ onSubmit, loading, hasResults }) {
               onChange={handleChange}
               min="10"
               max="90"
-              className={`w-full h-2 bg-[rgba(10,13,11,0.6)] rounded-lg appearance-none cursor-pointer slider ${
-                errors.coverage ? 'border-red-500' : ''
-              }`}
+              className="simulate-slider"
               style={{
-                background: `linear-gradient(to right, #00FF6F 0%, #00FF6F ${((formData.coverage - 10) / 80) * 100}%, rgba(255,255,255,0.1) ${((formData.coverage - 10) / 80) * 100}%, rgba(255,255,255,0.1) 100%)`
+                background: `linear-gradient(to right, var(--primary-green) 0%, var(--primary-green) ${((formData.coverage - 10) / 80) * 100}%, var(--slider-track) ${((formData.coverage - 10) / 80) * 100}%, var(--slider-track) 100%)`
               }}
             />
             {errors.coverage && (
-              <p className="text-red-400 text-sm mt-1">{errors.coverage}</p>
+              <p className="simulate-error-text">{errors.coverage}</p>
             )}
-            <div className="flex justify-between text-xs text-[rgba(255,255,255,0.4)] mt-1">
+            <div className="flex justify-between text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
               <span>10%</span>
               <span>90%</span>
             </div>
@@ -294,7 +284,7 @@ export default function InputForm({ onSubmit, loading, hasResults }) {
           <button
             type="submit"
             disabled={loading}
-            className="px-[50px] py-[18px] rounded-[10px] bg-gradient-to-r from-[#00FF6F] to-[#01D6DF] text-[#0A0D0B] font-semibold text-lg uppercase tracking-[1px] min-w-[200px] transition-all duration-300 hover:-translate-y-[3px] hover:shadow-[0_8px_25px_rgba(0,255,111,0.4)] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:hover:translate-y-0 disabled:hover:shadow-none"
+            className="simulate-button"
           >
             {loading ? 'Generating...' : 'Generate'}
           </button>
@@ -303,7 +293,7 @@ export default function InputForm({ onSubmit, loading, hasResults }) {
 
       {!hasResults && !loading && (
         <div className="mt-16 text-center max-w-2xl mx-auto">
-          <p className="text-[rgba(255,255,255,0.4)] text-xs leading-relaxed font-extralight tracking-wide">
+          <p className="simulate-description">
             Configure key policy settings including duration, carbon price, coverage, and country. Generate real-time projections of how your carbon pricing policy will affect both the environment and the economy. After running the simulation, Eco-Impact AI displays clear insights on revenue predictions, CO2 reduction potential, policy risk assessment, and environmental equivalencies, supported by interactive charts and year-by-year projections for deeper analysis.
           </p>
         </div>

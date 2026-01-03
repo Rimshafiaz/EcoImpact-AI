@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { createContext, useContext, useState } from 'react';
+import { ThemeProvider } from './contexts/ThemeContext';
 import Navbar from './components/Navbar';
 import { NotificationContainer } from './components/Notification';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -49,23 +50,25 @@ function App() {
   };
 
   return (
-    <NotificationContext.Provider value={notificationValue}>
-      <BrowserRouter>
-        <div className="App w-full min-h-screen">
-          <Navbar />
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/simulate" element={<Simulate />} />
-            <Route path="/compare" element={<ProtectedRoute><Compare /></ProtectedRoute>} />
-            <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
-            <Route path="/signup" element={<Signup />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/verify-email" element={<VerifyEmail />} />
-          </Routes>
-          <NotificationContainer notifications={notifications} removeNotification={removeNotification} />
-        </div>
-      </BrowserRouter>
-    </NotificationContext.Provider>
+    <ThemeProvider>
+      <NotificationContext.Provider value={notificationValue}>
+        <BrowserRouter>
+          <div className="App w-full min-h-screen">
+            <Navbar />
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/simulate" element={<Simulate />} />
+              <Route path="/compare" element={<ProtectedRoute><Compare /></ProtectedRoute>} />
+              <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
+              <Route path="/signup" element={<Signup />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/verify-email" element={<VerifyEmail />} />
+            </Routes>
+            <NotificationContainer notifications={notifications} removeNotification={removeNotification} />
+          </div>
+        </BrowserRouter>
+      </NotificationContext.Provider>
+    </ThemeProvider>
   );
 }
 

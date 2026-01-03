@@ -81,10 +81,16 @@ export default function RiskSection({ results }) {
     height: Math.max(200, riskFactors.length * 60)
   };
 
+  const getBadgeClass = () => {
+    if (results.risk_category === 'Low Risk') return 'results-badge results-badge-low';
+    if (results.risk_category === 'At Risk') return 'results-badge results-badge-medium';
+    return 'results-badge results-badge-high';
+  };
+
   return (
-    <div className="bg-[rgba(26,38,30,0.8)] rounded-xl border border-[rgba(0,255,111,0.15)] hover:border-[rgba(0,255,111,0.25)] transition-all duration-300 overflow-hidden h-full flex flex-col">
-      <div className="p-5 border-b border-[rgba(0,255,111,0.1)] flex-shrink-0">
-        <h2 className="text-[#00FF6F] text-xl font-bold uppercase tracking-wide">Risk Assessment</h2>
+    <div className="results-section h-full flex flex-col">
+      <div className="results-section-header flex-shrink-0">
+        <h2 className="results-section-title">Risk Assessment</h2>
       </div>
 
       <div className="p-5">
@@ -96,19 +102,15 @@ export default function RiskSection({ results }) {
             className="w-full"
           />
           <div className="text-center mt-2">
-            <span className={`inline-block px-4 py-1.5 rounded-full text-sm font-bold ${
-              results.risk_category === 'Low Risk' ? 'bg-green-900 text-green-400' :
-              results.risk_category === 'At Risk' ? 'bg-yellow-900 text-yellow-400' :
-              'bg-red-900 text-red-400'
-            }`}>
+            <span className={getBadgeClass()}>
               {results.risk_category}
             </span>
           </div>
         </div>
 
-        <div className="bg-[rgba(10,13,11,0.4)] rounded-lg p-4 border border-[rgba(0,255,111,0.1)]">
-          <h3 className="text-gray-300 text-sm font-semibold mb-3">Context</h3>
-          <p className="text-gray-400 text-sm leading-relaxed">
+        <div className="results-context-box">
+          <h3 className="results-chart-title">Context</h3>
+          <p className="results-context-text">
             {results.context_explanation}
           </p>
         </div>

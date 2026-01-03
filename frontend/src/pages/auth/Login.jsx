@@ -14,6 +14,14 @@ export default function Login() {
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [showPassword, setShowPassword] = useState(false);
+
+  const LeafSVG = ({ color = '#2D7A4F', size = 40 }) => (
+    <svg width={size} height={size} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M8 32C8 32 12 20 20 12C28 4 36 2 36 2C36 2 34 10 26 18C18 26 8 32 8 32Z" fill={color} fillOpacity="0.6"/>
+      <path d="M20 12C20 12 18 20 14 26C10 32 8 32 8 32" stroke={color} strokeWidth="1.5" strokeLinecap="round" fillOpacity="0.8"/>
+    </svg>
+  );
 
   const handleChange = (e) => {
     setFormData({
@@ -52,74 +60,124 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0A0D0B] flex items-center justify-center px-4 py-12">
+    <div className="login-page">
+      <div className="floating-leaf float-2">
+        <LeafSVG color="#4A90A4" size={45} />
+      </div>
+      <div className="floating-leaf float-3">
+        <LeafSVG color="#2D7A4F" size={40} />
+      </div>
+      <div className="floating-leaf across-3">
+        <LeafSVG color="#5C9B6F" size={35} />
+      </div>
+
       <div className="w-full max-w-md">
-        <div className="bg-[rgba(26,38,30,0.8)] rounded-xl border border-[rgba(0,255,111,0.15)] p-8">
-          <h1 className="text-[#00FF6F] text-3xl font-bold mb-2 text-center">Welcome Back</h1>
-          <p className="text-gray-400 text-center mb-8">Log in to access your simulations</p>
+        <div className="login-card">
+          <h1 className="login-title">Welcome Back</h1>
+          <p className="login-subtitle">Log in to access your simulations</p>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="email" className="block text-gray-300 text-sm font-semibold mb-2">
+              <label htmlFor="email" className="login-label">
                 Email
               </label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                required
-                autoComplete="email"
-                className={`w-full bg-[rgba(10,13,11,0.6)] border rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-1 transition-all ${
-                  errors.email || errors.username
-                    ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
-                    : 'border-[rgba(0,255,111,0.2)] focus:border-[#00FF6F] focus:ring-[#00FF6F]'
-                }`}
-                placeholder="you@example.com"
-              />
+              <div className="login-input-wrapper">
+                <svg className="login-input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                  <polyline points="22,6 12,13 2,6"></polyline>
+                </svg>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
+                  autoComplete="email"
+                  className={`login-input login-input-with-icon ${
+                    errors.email || errors.username
+                      ? 'login-input-error'
+                      : ''
+                  }`}
+                  placeholder="email"
+                />
+              </div>
               {(errors.email || errors.username) && (
-                <p className="mt-1 text-red-400 text-sm">{errors.email || errors.username}</p>
+                <p className="login-error-text">{errors.email || errors.username}</p>
               )}
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-gray-300 text-sm font-semibold mb-2">
+              <label htmlFor="password" className="login-label">
                 Password
               </label>
-              <input
-                type="password"
-                id="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                required
-                autoComplete="current-password"
-                className={`w-full bg-[rgba(10,13,11,0.6)] border rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-1 transition-all ${
-                  errors.password
-                    ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
-                    : 'border-[rgba(0,255,111,0.2)] focus:border-[#00FF6F] focus:ring-[#00FF6F]'
-                }`}
-                placeholder="Enter your password"
-              />
+              <div className="login-input-wrapper">
+                <svg className="login-input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  id="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                  autoComplete="current-password"
+                  className={`login-input login-input-with-icon login-input-with-toggle ${
+                    errors.password
+                      ? 'login-input-error'
+                      : ''
+                  }`}
+                  placeholder="password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="login-password-toggle"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                      <line x1="1" y1="1" x2="23" y2="23"></line>
+                    </svg>
+                  ) : (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                      <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                  )}
+                </button>
+              </div>
               {errors.password && (
-                <p className="mt-1 text-red-400 text-sm">{errors.password}</p>
+                <p className="login-error-text">{errors.password}</p>
               )}
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full px-6 py-3 rounded-lg bg-gradient-to-r from-[#00FF6F] to-[#01D6DF] text-[#0A0D0B] font-semibold text-lg uppercase tracking-wide transition-all duration-300 hover:-translate-y-[3px] hover:shadow-[0_8px_25px_rgba(0,255,111,0.4)] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:hover:translate-y-0 disabled:hover:shadow-none"
+              className="login-button"
             >
-              {loading ? 'Logging In...' : 'Log In'}
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="login-spinner" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10" strokeOpacity="0.25"></circle>
+                    <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round"></path>
+                  </svg>
+                  Logging In...
+                </span>
+              ) : (
+                'Log In'
+              )}
             </button>
           </form>
 
           <div className="mt-6 text-center">
-            <p className="text-gray-400 text-sm">
+            <p className="login-footer-text">
               Don't have an account?{' '}
-              <Link to="/signup" className="text-[#00FF6F] hover:text-[#01D6DF] font-semibold transition-colors">
+              <Link to="/signup" className="login-link">
                 Sign Up
               </Link>
             </p>
