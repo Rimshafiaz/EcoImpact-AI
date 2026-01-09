@@ -9,6 +9,7 @@ from .services import load_all_data, get_country_features, get_available_countri
 from .auth_routes import router as auth_router
 from .simulation_routes import router as simulation_router
 from .database import init_db
+from .models import Comparison  
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

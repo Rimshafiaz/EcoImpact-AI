@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react';
 import { getAvailableCountries } from '../../../utils/api/predictions';
 import { useNotificationContext } from '../../../App';
 import { extractErrorMessage } from '../../../utils/errorHandler';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 export default function InputForm({ onSubmit, loading, hasResults }) {
   const { showError } = useNotificationContext();
+  const { theme } = useTheme();
   const [formData, setFormData] = useState({
     country: '',
     policyType: 'Carbon tax',
@@ -38,7 +40,6 @@ export default function InputForm({ onSubmit, loading, hasResults }) {
       .then(setCountries)
       .catch(err => {
         showError(extractErrorMessage(err));
-        console.error('Failed to load countries:', err);
       });
   }, [showError]);
 

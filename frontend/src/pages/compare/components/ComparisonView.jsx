@@ -1,15 +1,38 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import ResultsDisplay from '../../simulate/components/ResultsDisplay';
 import { exportComparisonToCSV, exportComparisonToPDF } from '../../../utils/export';
 import { useNotificationContext } from '../../../App';
 import { extractErrorMessage } from '../../../utils/errorHandler';
+import { useTheme } from '../../../contexts/ThemeContext';
+import { saveComparison } from '../../../utils/api/simulations';
 
-export default function ComparisonView({ comparisonData, onBack }) {
+export default function ComparisonView({ comparisonData, onBack, onSaved }) {
   const { showError, showSuccess } = useNotificationContext();
+  const { theme } = useTheme();
   const sim1 = comparisonData.simulation_1;
   const sim2 = comparisonData.simulation_2;
   const card1Ref = useRef(null);
   const card2Ref = useRef(null);
+  const [saving, setSaving] = useState(false);
+  const isDark = theme === 'dark';
+
+  const handleSaveComparison = async () => {
+    try {
+      setSaving(true);
+      console.log('Saving comparison with data:', comparisonData);
+      const result = await saveComparison(comparisonData);
+      console.log('Comparison saved successfully:', result);
+      showSuccess('Comparison saved successfully!', 2000);
+      if (onSaved) {
+        onSaved();
+      }
+    } catch (error) {
+      console.error('Error saving comparison:', error);
+      showError(extractErrorMessage(error));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   useEffect(() => {
     if (card1Ref.current) {
@@ -35,10 +58,32 @@ export default function ComparisonView({ comparisonData, onBack }) {
   return (
     <div className="max-w-[1800px] mx-auto">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-[#00FF6F] text-4xl font-bold uppercase tracking-wide">
+        <h1 className="text-4xl font-bold uppercase tracking-wide" style={{ color: 'var(--primary-green)' }}>
           Policy Comparison
         </h1>
         <div className="flex gap-4 items-center">
+          <button
+            onClick={handleSaveComparison}
+            disabled={saving}
+            className="px-4 py-2 rounded-lg transition-colors text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : 'rgba(45, 122, 79, 0.2)',
+              border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.5)' : 'rgba(45, 122, 79, 0.5)'}`,
+              color: 'var(--primary-green)'
+            }}
+            onMouseEnter={(e) => {
+              if (!saving) {
+                e.target.style.backgroundColor = isDark ? 'rgba(16, 185, 129, 0.3)' : 'rgba(45, 122, 79, 0.3)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!saving) {
+                e.target.style.backgroundColor = isDark ? 'rgba(16, 185, 129, 0.2)' : 'rgba(45, 122, 79, 0.2)';
+              }
+            }}
+          >
+            {saving ? 'Saving...' : 'Save Comparison'}
+          </button>
           <button
             onClick={() => {
               try {
@@ -60,7 +105,18 @@ export default function ComparisonView({ comparisonData, onBack }) {
                 showError(extractErrorMessage(error));
               }
             }}
-            className="px-4 py-2 bg-[rgba(26,38,30,0.8)] border border-[rgba(0,255,111,0.3)] text-[#00FF6F] rounded-lg hover:bg-[rgba(0,255,111,0.1)] transition-colors text-sm font-semibold"
+            className="px-4 py-2 rounded-lg transition-colors text-sm font-semibold"
+            style={{
+              backgroundColor: isDark ? 'rgba(26, 38, 30, 0.8)' : 'var(--bg-card)',
+              border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.3)' : 'rgba(45, 122, 79, 0.3)'}`,
+              color: 'var(--primary-green)'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.backgroundColor = isDark ? 'rgba(16, 185, 129, 0.1)' : 'rgba(45, 122, 79, 0.1)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.backgroundColor = isDark ? 'rgba(26, 38, 30, 0.8)' : 'var(--bg-card)';
+            }}
           >
             Export Comparison CSV
           </button>
@@ -85,13 +141,36 @@ export default function ComparisonView({ comparisonData, onBack }) {
                 showError(extractErrorMessage(error));
               }
             }}
-            className="px-4 py-2 bg-[rgba(26,38,30,0.8)] border border-[rgba(0,255,111,0.3)] text-[#00FF6F] rounded-lg hover:bg-[rgba(0,255,111,0.1)] transition-colors text-sm font-semibold"
+            className="px-4 py-2 rounded-lg transition-colors text-sm font-semibold"
+            style={{
+              backgroundColor: isDark ? 'rgba(26, 38, 30, 0.8)' : 'var(--bg-card)',
+              border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.3)' : 'rgba(45, 122, 79, 0.3)'}`,
+              color: 'var(--primary-green)'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.backgroundColor = isDark ? 'rgba(16, 185, 129, 0.1)' : 'rgba(45, 122, 79, 0.1)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.backgroundColor = isDark ? 'rgba(26, 38, 30, 0.8)' : 'var(--bg-card)';
+            }}
           >
             Export Comparison PDF
           </button>
           <button
             onClick={onBack}
-            className="text-[#00FF6F] hover:text-[#01D6DF] transition-colors"
+            className="transition-colors px-3 py-1 rounded"
+            style={{ 
+              color: 'var(--primary-green)',
+              backgroundColor: 'transparent'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.color = 'var(--accent-green)';
+              e.target.style.backgroundColor = isDark ? 'rgba(16, 185, 129, 0.1)' : 'rgba(45, 122, 79, 0.1)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.color = 'var(--primary-green)';
+              e.target.style.backgroundColor = 'transparent';
+            }}
           >
             ← Back to List
           </button>
@@ -100,12 +179,25 @@ export default function ComparisonView({ comparisonData, onBack }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div ref={card1Ref} className="min-w-0">
-          <div className="mb-4 px-4 py-2 bg-gradient-to-r from-[#00FF6F] to-[#01D6DF] rounded-t-lg">
-            <h2 className="text-xl font-bold text-[#0A0D0B] break-words">
+          <div 
+            className="mb-4 px-4 py-2 rounded-t-lg"
+            style={{
+              background: isDark 
+                ? 'linear-gradient(135deg, #10B981 0%, #34D399 100%)'
+                : 'linear-gradient(135deg, #2D7A4F 0%, #5C9B6F 100%)'
+            }}
+          >
+            <h2 className="text-xl font-bold break-words" style={{ color: isDark ? '#0A0D0B' : '#FFFFFF' }}>
               {sim1.policy_name || 'Policy 1'}
             </h2>
           </div>
-          <div className="bg-[rgba(26,38,30,0.8)] rounded-b-xl border border-[rgba(0,255,111,0.15)] overflow-hidden">
+          <div 
+            className="rounded-b-xl overflow-hidden"
+            style={{
+              backgroundColor: isDark ? 'rgba(26, 38, 30, 0.8)' : 'var(--bg-card)',
+              border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.15)' : 'rgba(45, 122, 79, 0.15)'}`
+            }}
+          >
             <ResultsDisplay 
               results={sim1.results} 
               inputData={{
@@ -116,17 +208,31 @@ export default function ComparisonView({ comparisonData, onBack }) {
                 year: sim1.input?.year || sim1.input_params?.year,
                 duration: sim1.input?.projection_years || sim1.input_params?.projection_years
               }}
+              isComparison={true}
             />
           </div>
         </div>
 
         <div ref={card2Ref} className="min-w-0">
-          <div className="mb-4 px-4 py-2 bg-gradient-to-r from-[#01D6DF] to-[#00FF6F] rounded-t-lg">
-            <h2 className="text-xl font-bold text-[#0A0D0B] break-words">
+          <div 
+            className="mb-4 px-4 py-2 rounded-t-lg"
+            style={{
+              background: isDark
+                ? 'linear-gradient(135deg, #34D399 0%, #10B981 100%)'
+                : 'linear-gradient(135deg, #5C9B6F 0%, #2D7A4F 100%)'
+            }}
+          >
+            <h2 className="text-xl font-bold break-words" style={{ color: isDark ? '#0A0D0B' : '#FFFFFF' }}>
               {sim2.policy_name || 'Policy 2'}
             </h2>
           </div>
-          <div className="bg-[rgba(26,38,30,0.8)] rounded-b-xl border border-[rgba(0,255,111,0.15)] overflow-hidden">
+          <div 
+            className="rounded-b-xl overflow-hidden"
+            style={{
+              backgroundColor: isDark ? 'rgba(26, 38, 30, 0.8)' : 'var(--bg-card)',
+              border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.15)' : 'rgba(45, 122, 79, 0.15)'}`
+            }}
+          >
             <ResultsDisplay 
               results={sim2.results} 
               inputData={{
@@ -137,6 +243,7 @@ export default function ComparisonView({ comparisonData, onBack }) {
                 year: sim2.input?.year || sim2.input_params?.year,
                 duration: sim2.input?.projection_years || sim2.input_params?.projection_years
               }}
+              isComparison={true}
             />
           </div>
         </div>

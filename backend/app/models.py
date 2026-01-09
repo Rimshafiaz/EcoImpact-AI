@@ -19,6 +19,7 @@ class User(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     simulations = relationship("Simulation", back_populates="user", cascade="all, delete-orphan")
+    comparisons = relationship("Comparison", back_populates="user", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<User(id={self.id}, email={self.email})>"
@@ -38,4 +39,22 @@ class Simulation(Base):
 
     def __repr__(self):
         return f"<Simulation(id={self.id}, user_id={self.user_id}, policy_name={self.policy_name})>"
+
+
+class Comparison(Base):
+    __tablename__ = "comparisons"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    comparison_name = Column(String, nullable=True)
+    simulation_1_id = Column(Integer, ForeignKey("simulations.id"), nullable=True, index=True)
+    simulation_2_id = Column(Integer, ForeignKey("simulations.id"), nullable=True, index=True)
+    simulation_1_data = Column(JSON, nullable=False)  # Stores full simulation data (input + results)
+    simulation_2_data = Column(JSON, nullable=False)  # Stores full simulation data (input + results)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", back_populates="comparisons")
+
+    def __repr__(self):
+        return f"<Comparison(id={self.id}, user_id={self.user_id}, comparison_name={self.comparison_name})>"
 

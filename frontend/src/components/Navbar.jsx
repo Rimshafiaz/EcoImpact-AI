@@ -3,11 +3,13 @@ import { useState, useEffect } from 'react';
 import logo from '../assets/logo.png';
 import { isAuthenticated, getCurrentUser, logout as authLogout } from '../utils/api/auth';
 import ThemeSwitcher from './ThemeSwitcher';
+import { useTheme } from '../contexts/ThemeContext';
 import '../index.css';
 
 export default function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { theme } = useTheme();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -70,6 +72,7 @@ export default function Navbar() {
               <Link to="/compare" className={`nav-link ${location.pathname === '/compare' ? 'active' : ''}`}>Compare</Link>
             </>
           )}
+          <Link to="/faqs" className={`nav-link ${location.pathname === '/faqs' ? 'active' : ''}`}>FAQs</Link>
           {!isLoggedIn ? (
             <>
               <Link to="/login" className={`nav-link ${location.pathname === '/login' ? 'active' : ''}`}>Log In</Link>
@@ -79,23 +82,104 @@ export default function Navbar() {
             <div className="relative">
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
-                className="nav-link flex items-center gap-2"
+                className="flex items-center gap-2"
+                style={{
+                  color: theme === 'dark' ? '#F1F5F9' : '#2C2416',
+                  WebkitTextFillColor: theme === 'dark' ? '#F1F5F9' : '#2C2416',
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  padding: '0.5rem 1rem',
+                  cursor: 'pointer',
+                  fontSize: '1rem',
+                  fontWeight: 500,
+                  transition: 'color 0.3s ease'
+                }}
+                key={`user-button-${theme}`}
               >
-                <span>{user?.full_name || user?.email?.split('@')[0] || 'User'}</span>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <span style={{
+                  color: theme === 'dark' ? '#F1F5F9' : '#2C2416',
+                  WebkitTextFillColor: theme === 'dark' ? '#F1F5F9' : '#2C2416'
+                }}>
+                  {user?.full_name || user?.email?.split('@')[0] || 'User'}
+                </span>
+                <svg 
+                  className="w-4 h-4" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                  style={{
+                    color: theme === 'dark' ? '#F1F5F9' : '#2C2416'
+                  }}
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
               {showUserMenu && (
-                <div className="absolute right-0 mt-2 w-48 bg-[rgba(26,38,30,0.95)] border border-[rgba(0,255,111,0.3)] rounded-lg shadow-lg z-50">
-                  <div className="py-2">
-                    <div className="px-4 py-2 text-sm text-gray-300 border-b border-[rgba(0,255,111,0.1)]">
-                      <div className="font-semibold text-[#00FF6F]">{user?.full_name || 'User'}</div>
-                      <div className="text-xs text-gray-400">{user?.email}</div>
+                <div 
+                  style={{
+                    position: 'absolute',
+                    right: 0,
+                    marginTop: '0.5rem',
+                    width: '12rem',
+                    borderRadius: '0.5rem',
+                    zIndex: 50,
+                    backgroundColor: theme === 'dark' ? 'rgba(26, 38, 30, 0.98)' : 'rgb(255, 255, 255)',
+                    border: `1px solid ${theme === 'dark' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(45, 122, 79, 0.3)'}`,
+                    boxShadow: theme === 'dark' ? '0 4px 16px rgba(16, 185, 129, 0.25)' : '0 2px 8px rgba(0, 0, 0, 0.08)',
+                    backdropFilter: 'blur(10px)'
+                  }}
+                >
+                  <div style={{ padding: '0.5rem 0', backgroundColor: theme === 'dark' ? 'transparent' : 'rgb(255, 255, 255)' }}>
+                    <div 
+                      style={{
+                        padding: '0.5rem 1rem',
+                        fontSize: '0.875rem',
+                        backgroundColor: theme === 'dark' ? 'transparent' : 'rgb(255, 255, 255)',
+                        borderBottom: `1px solid ${theme === 'dark' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(45, 122, 79, 0.1)'}`
+                      }}
+                    >
+                      <div 
+                        style={{ 
+                          fontWeight: 600,
+                          color: theme === 'dark' ? '#10B981' : '#2D7A4F',
+                          WebkitTextFillColor: theme === 'dark' ? '#10B981' : '#2D7A4F',
+                          backgroundColor: 'transparent'
+                        }}
+                      >
+                        {user?.full_name || 'User'}
+                      </div>
+                      <div 
+                        style={{ 
+                          fontSize: '0.75rem',
+                          color: theme === 'dark' ? '#94A3B8' : '#7D7163',
+                          WebkitTextFillColor: theme === 'dark' ? '#94A3B8' : '#7D7163',
+                          backgroundColor: 'transparent'
+                        }}
+                      >
+                        {user?.email}
+                      </div>
                     </div>
                     <button
                       onClick={handleLogout}
-                      className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-[rgba(0,255,111,0.1)] hover:text-[#00FF6F] transition-colors"
+                      style={{ 
+                        width: '100%',
+                        textAlign: 'left',
+                        padding: '0.5rem 1rem',
+                        fontSize: '0.875rem',
+                        backgroundColor: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: theme === 'dark' ? '#F1F5F9' : '#2C2416',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.style.backgroundColor = theme === 'dark' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(45, 122, 79, 0.1)';
+                        e.target.style.color = theme === 'dark' ? '#10B981' : '#2D7A4F';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.backgroundColor = 'transparent';
+                        e.target.style.color = theme === 'dark' ? '#F1F5F9' : '#2C2416';
+                      }}
                     >
                       Logout
                     </button>

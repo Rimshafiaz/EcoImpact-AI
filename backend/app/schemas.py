@@ -78,3 +78,35 @@ class CompareSimulationsRequest(BaseModel):
     simulation_id_2: Optional[int] = None
     new_simulation_1: Optional[PredictionRequest] = None
     new_simulation_2: Optional[PredictionRequest] = None
+
+class SaveComparisonRequest(BaseModel):
+    comparison_name: Optional[str] = None
+    simulation_1_data: dict
+    simulation_2_data: dict
+    simulation_1_id: Optional[int] = None
+    simulation_2_id: Optional[int] = None
+
+class ComparisonSummary(BaseModel):
+    id: int
+    comparison_name: Optional[str]
+    created_at: datetime
+    policy_1_name: str
+    policy_2_name: str
+    country_1: str
+    country_2: str
+    
+    class Config:
+        from_attributes = True
+
+class ComparisonDetail(BaseModel):
+    id: int
+    user_id: int
+    comparison_name: Optional[str]
+    created_at: datetime
+    simulation_1_id: Optional[int]
+    simulation_2_id: Optional[int]
+    simulation_1_data: dict
+    simulation_2_data: dict
+    
+    class Config:
+        from_attributes = True

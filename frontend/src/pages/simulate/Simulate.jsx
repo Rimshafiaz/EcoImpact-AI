@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import InputForm from './components/InputForm';
 import ResultsDisplay from './components/ResultsDisplay';
@@ -15,6 +15,7 @@ export default function Simulate() {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState(null);
   const [inputData, setInputData] = useState(null);
+  const resultsRef = useRef(null);
 
   const handleSubmit = async (formData) => {
     if (!isAuthenticated()) {
@@ -45,8 +46,22 @@ export default function Simulate() {
     }
   };
 
+  // Auto-scroll to results when they're loaded
+  useEffect(() => {
+    if (results && resultsRef.current && isAuthenticated()) {
+      // Wait a bit for DOM to render, then scroll
+      setTimeout(() => {
+        resultsRef.current?.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        });
+      }, 300);
+    }
+  }, [results]);
+
   return (
     <div className="simulate-page">
+      <div className="simulate-page-background"></div>
       <div className="cyber-earth-container">
         <img
           src={cyberEarthImage}
@@ -59,7 +74,11 @@ export default function Simulate() {
       <div className="simulate-content">
         <div className="w-full">
           <InputForm onSubmit={handleSubmit} loading={loading} hasResults={!!results} />
-          {results && <ResultsDisplay results={results} inputData={inputData} />}
+          {results && (
+            <div ref={resultsRef}>
+              <ResultsDisplay results={results} inputData={inputData} />
+            </div>
+          )}
         </div>
       </div>
 

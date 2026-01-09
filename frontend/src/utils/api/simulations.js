@@ -109,7 +109,7 @@ export const compareSimulations = async (options) => {
   const requestBody = {};
   
   if (options.simulationId1) {
-    requestBody.simulation_id_1 = options.simulationId1;
+    requestBody.simulation_id_1 = parseInt(options.simulationId1, 10);
   } else if (options.newSimulation1) {
     requestBody.new_simulation_1 = {
       country: options.newSimulation1.country,
@@ -122,7 +122,7 @@ export const compareSimulations = async (options) => {
   }
 
   if (options.simulationId2) {
-    requestBody.simulation_id_2 = options.simulationId2;
+    requestBody.simulation_id_2 = parseInt(options.simulationId2, 10);
   } else if (options.newSimulation2) {
     requestBody.new_simulation_2 = {
       country: options.newSimulation2.country,
@@ -141,6 +141,82 @@ export const compareSimulations = async (options) => {
       body: JSON.stringify(requestBody)
     });
     return await handleResponse(response);
+  } catch (error) {
+    if (error.response) throw error;
+    throw new Error('Network error. Please check your connection and try again.');
+  }
+};
+
+export const saveComparison = async (comparisonData, comparisonName = null) => {
+  // Convert IDs to integers or null, handle both number and string IDs
+  const sim1Id = comparisonData.simulation_1?.id;
+  const sim2Id = comparisonData.simulation_2?.id;
+  
+  // Helper to safely convert to int or null
+  const toIntOrNull = (value) => {
+    if (value === null || value === undefined || value === '') return null;
+    const parsed = parseInt(value, 10);
+    return isNaN(parsed) ? null : parsed;
+  };
+  
+  const requestBody = {
+    comparison_name: comparisonName || null,
+    simulation_1_data: comparisonData.simulation_1 || {},
+    simulation_2_data: comparisonData.simulation_2 || {},
+    simulation_1_id: toIntOrNull(sim1Id),
+    simulation_2_id: toIntOrNull(sim2Id)
+  };
+
+  console.log('Saving comparison request body:', requestBody);
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/simulations/comparisons`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(requestBody)
+    });
+    return await handleResponse(response);
+  } catch (error) {
+    if (error.response) throw error;
+    throw new Error('Network error. Please check your connection and try again.');
+  }
+};
+
+export const getUserComparisons = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/simulations/comparisons`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    return await handleResponse(response);
+  } catch (error) {
+    if (error.response) throw error;
+    throw new Error('Network error. Please check your connection and try again.');
+  }
+};
+
+export const getComparisonById = async (comparisonId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/simulations/comparisons/${comparisonId}`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    return await handleResponse(response);
+  } catch (error) {
+    if (error.response) throw error;
+    throw new Error('Network error. Please check your connection and try again.');
+  }
+};
+
+export const deleteComparison = async (comparisonId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/simulations/comparisons/${comparisonId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    if (!response.ok) {
+      await handleResponse(response);
+    }
   } catch (error) {
     if (error.response) throw error;
     throw new Error('Network error. Please check your connection and try again.');

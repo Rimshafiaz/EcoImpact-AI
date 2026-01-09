@@ -4,6 +4,7 @@ import { getUserSimulations, getSimulationById, deleteSimulation, updateSimulati
 import { isAuthenticated } from '../../utils/api/auth';
 import { useNotificationContext } from '../../App';
 import { extractErrorMessage } from '../../utils/errorHandler';
+import { useTheme } from '../../contexts/ThemeContext';
 import SimulationList from './components/SimulationList';
 import SimulationDetail from './components/SimulationDetail';
 import cyberEarthImage from '../../assets/cyberearth.png';
@@ -96,12 +97,12 @@ export default function History() {
   const uniquePolicyTypes = [...new Set(simulations.map(sim => sim.policy_type))].sort();
 
   return (
-    <div className="fixed inset-0 w-full h-full bg-[#0A0D0B] overflow-hidden">
+    <div className="fixed inset-0 w-full h-full overflow-hidden" style={{ backgroundColor: 'var(--bg-primary)' }}>
       <div className="fixed bottom-[-80px] right-[-80px] w-[400px] h-[400px] md:bottom-[-100px] md:right-[-100px] md:w-[500px] md:h-[500px] lg:bottom-[-150px] lg:right-[-150px] lg:w-[700px] lg:h-[700px] pointer-events-none z-0 overflow-hidden">
         <img 
           src={cyberEarthImage} 
           alt="Cyber Earth" 
-          className="w-full h-full object-contain opacity-60 drop-shadow-[0_0_40px_rgba(0,255,111,0.4)]"
+          className="w-full h-full object-contain cyber-earth-image"
           style={{ animation: 'rotateEarth 30s linear infinite' }}
         />
       </div>

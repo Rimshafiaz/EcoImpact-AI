@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import OperationalError
 from typing import List
 from .database import get_db
-from .models import Simulation, User
-from .schemas import SimulationSummary, SimulationDetail, CompareSimulationsRequest, PredictionRequest, PredictionResponse
+from .models import Simulation, User, Comparison
+from .schemas import SimulationSummary, SimulationDetail, CompareSimulationsRequest, PredictionRequest, PredictionResponse, SaveComparisonRequest, ComparisonSummary, ComparisonDetail
 from .auth_routes import get_current_user
 from .services import get_country_features
 from .predict import predict_revenue, predict_success
@@ -515,17 +515,41 @@ def delete_simulation(
 
 @router.post("/compare")
 def compare_simulations(
-    request: CompareSimulationsRequest,
+    body: dict = Body(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    from pydantic import ValidationError
+    
     simulation_1 = None
     simulation_2 = None
     
-    if request.simulation_id_1:
+    def convert_id(id_value):
+        if id_value is None:
+            return None
+        if id_value == '' or id_value == 'null' or id_value == 'undefined':
+            return None
+        if isinstance(id_value, int):
+            return id_value
+        if isinstance(id_value, float):
+            return int(id_value)
+        if isinstance(id_value, str):
+            try:
+                return int(id_value)
+            except (ValueError, TypeError):
+                return None
+        return None
+    
+    sim_id_1_raw = body.get('simulation_id_1')
+    sim_id_2_raw = body.get('simulation_id_2')
+    sim_id_1 = convert_id(sim_id_1_raw)
+    sim_id_2 = convert_id(sim_id_2_raw)
+    
+    # Process first simulation
+    if sim_id_1:
         try:
             sim = db.query(Simulation).filter(
-                Simulation.id == request.simulation_id_1,
+                Simulation.id == sim_id_1,
                 Simulation.user_id == current_user.id
             ).first()
         except OperationalError as e:
@@ -545,24 +569,31 @@ def compare_simulations(
             "id": sim.id,
             "policy_name": sim.policy_name
         }
-    elif request.new_simulation_1:
-        results_1 = _run_prediction(request.new_simulation_1)
-        simulation_1 = {
-            "input": request.new_simulation_1,
-            "results": results_1,
-            "id": None,
-            "policy_name": generate_policy_name(request.new_simulation_1.dict())
-        }
+    elif body.get('new_simulation_1'):
+        try:
+            new_sim_1 = PredictionRequest(**body.get('new_simulation_1'))
+            results_1 = _run_prediction(new_sim_1)
+            simulation_1 = {
+                "input": new_sim_1,
+                "results": results_1,
+                "id": None,
+                "policy_name": generate_policy_name(new_sim_1.dict())
+            }
+        except ValidationError as e:
+            raise_validation_error(
+                "Invalid data for new simulation 1. Please check all required fields.",
+                field="new_simulation_1"
+            )
     else:
         raise_validation_error(
             "Please provide either a saved simulation or create a new simulation for the first policy",
             field="simulation_id_1"
         )
     
-    if request.simulation_id_2:
+    if sim_id_2:
         try:
             sim = db.query(Simulation).filter(
-                Simulation.id == request.simulation_id_2,
+                Simulation.id == sim_id_2,
                 Simulation.user_id == current_user.id
             ).first()
         except OperationalError as e:
@@ -582,14 +613,21 @@ def compare_simulations(
             "id": sim.id,
             "policy_name": sim.policy_name
         }
-    elif request.new_simulation_2:
-        results_2 = _run_prediction(request.new_simulation_2)
-        simulation_2 = {
-            "input": request.new_simulation_2,
-            "results": results_2,
-            "id": None,
-            "policy_name": generate_policy_name(request.new_simulation_2.dict())
-        }
+    elif body.get('new_simulation_2'):
+        try:
+            new_sim_2 = PredictionRequest(**body.get('new_simulation_2'))
+            results_2 = _run_prediction(new_sim_2)
+            simulation_2 = {
+                "input": new_sim_2,
+                "results": results_2,
+                "id": None,
+                "policy_name": generate_policy_name(new_sim_2.dict())
+            }
+        except ValidationError as e:
+            raise_validation_error(
+                "Invalid data for new simulation 2. Please check all required fields.",
+                field="new_simulation_2"
+            )
     else:
         raise_validation_error(
             "Please provide either a saved simulation or create a new simulation for the second policy",
@@ -600,4 +638,241 @@ def compare_simulations(
         "simulation_1": simulation_1,
         "simulation_2": simulation_2
     }
+
+@router.post("/comparisons", response_model=ComparisonDetail, status_code=status.HTTP_201_CREATED)
+def save_comparison(
+    body: dict = Body(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    from pydantic import ValidationError
+    
+    # Extract and convert IDs before validation
+    sim1_id_raw = body.get('simulation_1_id')
+    sim2_id_raw = body.get('simulation_2_id')
+    
+    # Convert IDs to integers or None - handle all possible input types
+    def convert_id(id_value):
+        if id_value is None:
+            return None
+        if id_value == '' or id_value == 'null' or id_value == 'undefined':
+            return None
+        if isinstance(id_value, int):
+            return id_value
+        if isinstance(id_value, float):
+            return int(id_value)
+        if isinstance(id_value, str):
+            try:
+                return int(id_value)
+            except (ValueError, TypeError):
+                return None
+        return None
+    
+    sim1_id = convert_id(sim1_id_raw)
+    sim2_id = convert_id(sim2_id_raw)
+    
+    comparison_name = body.get('comparison_name')
+    sim1_data_raw = body.get('simulation_1_data', {})
+    sim2_data_raw = body.get('simulation_2_data', {})
+    
+    # Validate required fields
+    if not isinstance(sim1_data_raw, dict):
+        raise_validation_error(
+            "simulation_1_data must be a valid object",
+            field="simulation_1_data"
+        )
+    if not isinstance(sim2_data_raw, dict):
+        raise_validation_error(
+            "simulation_2_data must be a valid object",
+            field="simulation_2_data"
+        )
+    
+    def normalize_sim_data(sim_data):
+        if not isinstance(sim_data, dict):
+            return sim_data
+        
+        if hasattr(sim_data.get('input'), 'dict'):
+            sim_data['input'] = sim_data['input'].dict()
+        elif hasattr(sim_data.get('input'), 'model_dump'):
+            sim_data['input'] = sim_data['input'].model_dump()
+        
+        if hasattr(sim_data.get('results'), 'dict'):
+            sim_data['results'] = sim_data['results'].dict()
+        elif hasattr(sim_data.get('results'), 'model_dump'):
+            sim_data['results'] = sim_data['results'].model_dump()
+        
+        if 'input_params' not in sim_data and 'input' in sim_data:
+            sim_data['input_params'] = sim_data['input']
+        
+        return sim_data
+    
+    sim1_data = normalize_sim_data(sim1_data_raw)
+    sim2_data = normalize_sim_data(sim2_data_raw)
+    
+    if not comparison_name:
+        sim1_name = sim1_data.get('policy_name') or (sim1_data.get('input', {}).get('country', 'Policy') if isinstance(sim1_data.get('input'), dict) else 'Policy 1')
+        sim2_name = sim2_data.get('policy_name') or (sim2_data.get('input', {}).get('country', 'Policy') if isinstance(sim2_data.get('input'), dict) else 'Policy 2')
+        comparison_name = f"{sim1_name} vs {sim2_name}"
+    
+    comparison = Comparison(
+        user_id=current_user.id,
+        comparison_name=comparison_name,
+        simulation_1_id=sim1_id,
+        simulation_2_id=sim2_id,
+        simulation_1_data=sim1_data,
+        simulation_2_data=sim2_data
+    )
+    
+    try:
+        db.add(comparison)
+        db.commit()
+        db.refresh(comparison)
+    except OperationalError as e:
+        db.rollback()
+        raise_service_unavailable_error(
+            "Unable to save comparison due to a database connection issue. Please try again in a moment.",
+            service="database"
+        )
+    
+    return ComparisonDetail(
+        id=int(comparison.id),
+        user_id=int(comparison.user_id),
+        comparison_name=comparison.comparison_name,
+        created_at=comparison.created_at,
+        simulation_1_id=int(comparison.simulation_1_id) if comparison.simulation_1_id else None,
+        simulation_2_id=int(comparison.simulation_2_id) if comparison.simulation_2_id else None,
+        simulation_1_data=comparison.simulation_1_data,
+        simulation_2_data=comparison.simulation_2_data
+    )
+
+@router.get("/comparisons", response_model=List[ComparisonSummary])
+def get_user_comparisons(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        comparisons = db.query(Comparison).filter(
+            Comparison.user_id == current_user.id
+        ).order_by(Comparison.created_at.desc()).all()
+        logger.info(f"Found {len(comparisons)} comparisons for user {current_user.id}")
+    except OperationalError as e:
+        raise_service_unavailable_error(
+            "Unable to load comparisons due to a database connection issue. Please try again in a moment.",
+            service="database"
+        )
+    
+    result = []
+    for comp in comparisons:
+        try:
+            if not comp.simulation_1_data or not comp.simulation_2_data:
+                continue
+            
+            sim1_data = comp.simulation_1_data
+            sim2_data = comp.simulation_2_data
+            
+            if not isinstance(sim1_data, dict) or not isinstance(sim2_data, dict):
+                continue
+            
+            sim1_input = sim1_data.get('input') or sim1_data.get('input_params') or {}
+            sim2_input = sim2_data.get('input') or sim2_data.get('input_params') or {}
+            
+            if not isinstance(sim1_input, dict):
+                sim1_input = {}
+            if not isinstance(sim2_input, dict):
+                sim2_input = {}
+            
+            policy_1_name = sim1_data.get('policy_name') or f"{sim1_input.get('policy_type', 'Policy')} - {sim1_input.get('country', 'Unknown')}"
+            policy_2_name = sim2_data.get('policy_name') or f"{sim2_input.get('policy_type', 'Policy')} - {sim2_input.get('country', 'Unknown')}"
+            
+            country_1 = sim1_input.get('country', 'N/A')
+            country_2 = sim2_input.get('country', 'N/A')
+            
+            comp_id = int(comp.id) if comp.id else 0
+            
+            result.append(ComparisonSummary(
+                id=comp_id,
+                comparison_name=comp.comparison_name,
+                created_at=comp.created_at,
+                policy_1_name=policy_1_name,
+                policy_2_name=policy_2_name,
+                country_1=country_1,
+                country_2=country_2
+            ))
+        except Exception as e:
+            logger.warning(f"Skipping comparison: {str(e)}")
+            continue
+    
+    return result
+
+@router.get("/comparisons/{comparison_id}", response_model=ComparisonDetail)
+def get_comparison(
+    comparison_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        comparison = db.query(Comparison).filter(
+            Comparison.id == comparison_id,
+            Comparison.user_id == current_user.id
+        ).first()
+    except OperationalError as e:
+        raise_service_unavailable_error(
+            "Unable to load comparison due to a database connection issue. Please try again in a moment.",
+            service="database"
+        )
+    
+    if not comparison:
+        raise_not_found_error(
+            "Comparison not found. It may have been deleted or you don't have permission to view it.",
+            resource="comparison"
+        )
+    
+    return ComparisonDetail(
+        id=int(comparison.id),
+        user_id=int(comparison.user_id),
+        comparison_name=comparison.comparison_name,
+        created_at=comparison.created_at,
+        simulation_1_id=int(comparison.simulation_1_id) if comparison.simulation_1_id else None,
+        simulation_2_id=int(comparison.simulation_2_id) if comparison.simulation_2_id else None,
+        simulation_1_data=comparison.simulation_1_data,
+        simulation_2_data=comparison.simulation_2_data
+    )
+
+@router.delete("/comparisons/{comparison_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_comparison(
+    comparison_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        comparison = db.query(Comparison).filter(
+            Comparison.id == comparison_id,
+            Comparison.user_id == current_user.id
+        ).first()
+    except OperationalError as e:
+        raise_service_unavailable_error(
+            "Unable to delete comparison due to a database connection issue. Please try again in a moment.",
+            service="database"
+        )
+    
+    if not comparison:
+        raise_not_found_error(
+            "Comparison not found. It may have been deleted or you don't have permission to delete it.",
+            resource="comparison"
+        )
+    
+    try:
+        db.delete(comparison)
+        db.commit()
+    except OperationalError as e:
+        db.rollback()
+        raise_service_unavailable_error(
+            "Unable to delete comparison due to a database connection issue. Please try again in a moment.",
+            service="database"
+        )
+    
+    return None
 

@@ -5,7 +5,7 @@ import EnvironmentalSection from './EnvironmentalSection';
 import ProjectionsSection from './ProjectionsSection';
 import RecommendationsSection from './RecommendationsSection';
 
-export default function ResultsDisplay({ results, inputData }) {
+export default function ResultsDisplay({ results, inputData, isComparison = false }) {
   if (!results) return null;
 
   return (
@@ -35,7 +35,7 @@ export default function ResultsDisplay({ results, inputData }) {
 
       {/* Hero Summary Cards - Compact */}
       <div className="mb-8 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
-        <HeroCards results={results} />
+        <HeroCards results={results} startCounting={false} />
       </div>
 
       {/* Main Content Grid - 2 Columns on Large Screens */}
@@ -43,27 +43,27 @@ export default function ResultsDisplay({ results, inputData }) {
         {/* Left Column */}
         <div className="flex flex-col space-y-6">
           {/* Financial Analysis - Compact */}
-          <div className="animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-            <FinancialSection results={results} />
+          <div className="animate-slide-in-left" style={{ animationDelay: '0.2s' }}>
+            <FinancialSection results={results} isComparison={isComparison} />
           </div>
 
-          <div className="animate-fade-in-up flex-1" style={{ animationDelay: '0.3s' }}>
-            <RiskSection results={results} />
+          <div className="animate-slide-in-left flex-1" style={{ animationDelay: '0.3s' }}>
+            <RiskSection results={results} isComparison={isComparison} />
           </div>
         </div>
 
         <div className="flex flex-col space-y-6">
-          <div className="animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
-            <EnvironmentalSection results={results} />
+          <div className="animate-slide-in-right" style={{ animationDelay: '0.4s' }}>
+            <EnvironmentalSection results={results} isComparison={isComparison} />
           </div>
 
-          <div className="animate-fade-in-up flex-1" style={{ animationDelay: '0.5s' }}>
+          <div className="animate-slide-in-right flex-1" style={{ animationDelay: '0.5s' }}>
             <RecommendationsSection results={results} />
           </div>
         </div>
       </div>
       <div className="mb-8 animate-fade-in-up" style={{ animationDelay: '0.6s' }}>
-        <ProjectionsSection results={results} />
+        <ProjectionsSection results={results} isComparison={isComparison} />
       </div>
     </div>
   );

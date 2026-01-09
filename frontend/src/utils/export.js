@@ -186,7 +186,6 @@ export const exportToPDF = async (simulation, elementRef = null) => {
     const inputParams = simulation.input_params || {};
     
     if (!results) {
-      console.error('No results data found in simulation');
       throw new Error('No simulation results found. Please ensure the simulation has completed successfully.');
     }
     
@@ -423,7 +422,6 @@ export const exportToPDF = async (simulation, elementRef = null) => {
     const fileName = `${(simulation.policy_name || 'simulation').replace(/[^a-z0-9]/gi, '_')}_${new Date().getTime()}.pdf`;
     doc.save(fileName);
   } catch (error) {
-    console.error('Error generating PDF:', error);
     throw new Error(error.message || 'Failed to generate PDF. Please try again.');
   }
 };
@@ -494,7 +492,6 @@ export const exportComparisonToPDF = async (sim1, sim2) => {
     const doc = new jsPDF('p', 'mm', 'a4');
     
     if (!sim1 || !sim2 || !sim1.results || !sim2.results) {
-      console.error('Invalid simulation data for comparison');
       throw new Error('Invalid simulation data. Please ensure both simulations have valid results.');
     }
     
@@ -604,7 +601,6 @@ export const exportComparisonToPDF = async (sim1, sim2) => {
     const fileName = `comparison_${new Date().getTime()}.pdf`;
     doc.save(fileName);
   } catch (error) {
-    console.error('Error generating comparison PDF:', error);
     throw new Error(error.message || 'Failed to generate comparison PDF. Please try again.');
   }
 };

@@ -4,13 +4,16 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import Navbar from './components/Navbar';
 import { NotificationContainer } from './components/Notification';
 import ProtectedRoute from './components/ProtectedRoute';
+import ErrorBoundary from './components/ErrorBoundary';
 import Home from './pages/home/Home';
 import Simulate from './pages/simulate/Simulate';
 import Compare from './pages/compare/Compare';
 import History from './pages/history/History';
+import FAQs from './pages/faqs/FAQs';
 import Signup from './pages/auth/Signup';
 import Login from './pages/auth/Login';
 import VerifyEmail from './pages/auth/VerifyEmail';
+import NotFound from './pages/NotFound';
 
 const NotificationContext = createContext(null);
 
@@ -52,21 +55,25 @@ function App() {
   return (
     <ThemeProvider>
       <NotificationContext.Provider value={notificationValue}>
-        <BrowserRouter>
-          <div className="App w-full min-h-screen">
-            <Navbar />
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/simulate" element={<Simulate />} />
-              <Route path="/compare" element={<ProtectedRoute><Compare /></ProtectedRoute>} />
-              <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
-              <Route path="/signup" element={<Signup />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/verify-email" element={<VerifyEmail />} />
-            </Routes>
-            <NotificationContainer notifications={notifications} removeNotification={removeNotification} />
-          </div>
-        </BrowserRouter>
+        <ErrorBoundary>
+          <BrowserRouter>
+            <div className="App w-full min-h-screen">
+              <Navbar />
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/simulate" element={<Simulate />} />
+                <Route path="/compare" element={<ProtectedRoute><Compare /></ProtectedRoute>} />
+                <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
+                <Route path="/faqs" element={<FAQs />} />
+                <Route path="/signup" element={<Signup />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/verify-email" element={<VerifyEmail />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+              <NotificationContainer notifications={notifications} removeNotification={removeNotification} />
+            </div>
+          </BrowserRouter>
+        </ErrorBoundary>
       </NotificationContext.Provider>
     </ThemeProvider>
   );
