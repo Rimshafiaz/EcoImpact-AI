@@ -19,10 +19,11 @@ export default function Compare() {
   const [simulations, setSimulations] = useState([]);
   const [savedComparisons, setSavedComparisons] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState('list'); 
+  const [viewMode, setViewMode] = useState('list');
   const [selectedSimulation, setSelectedSimulation] = useState(null);
   const [comparisonData, setComparisonData] = useState(null);
   const [showNewComparison, setShowNewComparison] = useState(false);
+  const [deleteConfirmModal, setDeleteConfirmModal] = useState({ show: false, comparisonId: null, comparisonName: '' });
   const isDark = theme === 'dark';
 
   useEffect(() => {
@@ -34,11 +35,6 @@ export default function Compare() {
     loadSavedComparisons();
   }, [navigate]);
 
-  useEffect(() => {
-    if (viewMode === 'saved') {
-      loadSavedComparisons();
-    }
-  }, [viewMode]);
 
   const loadSimulations = async () => {
     try {
@@ -57,10 +53,19 @@ export default function Compare() {
       console.log('Loading saved comparisons...');
       const data = await getUserComparisons();
       console.log('Loaded comparisons:', data);
-      setSavedComparisons(data || []);
+      console.log('Number of comparisons:', data?.length || 0);
+      if (data && Array.isArray(data)) {
+        setSavedComparisons(data);
+        console.log('State updated with', data.length, 'comparisons');
+      } else {
+        console.warn('Invalid data format received:', data);
+        setSavedComparisons([]);
+      }
     } catch (err) {
       console.error('Failed to load comparisons:', err);
+      console.error('Error details:', err);
       const errorMsg = extractErrorMessage(err);
+      console.error('Error message:', errorMsg);
       if (!errorMsg.includes('unable to parse string as an integer')) {
         showError(errorMsg);
       }
@@ -119,23 +124,40 @@ export default function Compare() {
     }
   };
 
-  const handleBackToList = () => {
+  const handleBackToList = async () => {
     setViewMode('list');
     setSelectedSimulation(null);
     setComparisonData(null);
     setShowNewComparison(false);
+    await loadSavedComparisons();
   };
 
-  const handleLoadSavedComparison = async (comparisonId) => {
+  const handleLoadSavedComparison = async (comparison) => {
     try {
       setLoading(true);
-      const data = await getComparisonById(comparisonId);
-      setComparisonData({
-        simulation_1: data.simulation_1_data,
-        simulation_2: data.simulation_2_data
+      // Re-run the comparison with the saved input parameters
+      const data = await compareSimulations({
+        newSimulation1: {
+          country: comparison.policy_1_input.country,
+          policyType: comparison.policy_1_input.policy_type,
+          carbonPrice: comparison.policy_1_input.carbon_price_usd,
+          coverage: comparison.policy_1_input.coverage_percent,
+          year: comparison.policy_1_input.year || 2025,
+          duration: comparison.policy_1_input.projection_years || 5
+        },
+        newSimulation2: {
+          country: comparison.policy_2_input.country,
+          policyType: comparison.policy_2_input.policy_type,
+          carbonPrice: comparison.policy_2_input.carbon_price_usd,
+          coverage: comparison.policy_2_input.coverage_percent,
+          year: comparison.policy_2_input.year || 2025,
+          duration: comparison.policy_2_input.projection_years || 5
+        }
       });
+      setComparisonData(data);
       setViewMode('compare');
       setSelectedSimulation(null);
+      setShowNewComparison(false);
       showSuccess('Comparison loaded successfully!', 2000);
     } catch (err) {
       showError(extractErrorMessage(err));
@@ -144,30 +166,22 @@ export default function Compare() {
     }
   };
 
-  const handleDeleteComparison = async (comparisonId) => {
+  const handleDeleteComparison = async () => {
     try {
-      await deleteComparison(comparisonId);
+      await deleteComparison(deleteConfirmModal.comparisonId);
       await loadSavedComparisons();
       showSuccess('Comparison deleted successfully', 2000);
+      setDeleteConfirmModal({ show: false, comparisonId: null, comparisonName: '' });
     } catch (err) {
       showError(extractErrorMessage(err));
+      setDeleteConfirmModal({ show: false, comparisonId: null, comparisonName: '' });
     }
   };
 
   const handleComparisonSaved = async () => {
-    console.log('Comparison saved callback triggered, reloading comparisons...');
-    try {
-      const data = await getUserComparisons();
-      console.log('Loaded comparisons after save:', data);
-      setSavedComparisons(data || []);
-      console.log('State updated with', data?.length || 0, 'comparisons');
-    } catch (err) {
-      console.error('Failed to reload comparisons:', err);
-      const errorMsg = extractErrorMessage(err);
-      if (!errorMsg.includes('unable to parse string as an integer')) {
-        showError(errorMsg);
-      }
-    }
+    console.log('handleComparisonSaved called - reloading comparisons...');
+    await loadSavedComparisons();
+    console.log('Comparisons reloaded, current count:', savedComparisons.length);
   };
 
   const handleDelete = async (simulationId) => {
@@ -204,7 +218,11 @@ export default function Compare() {
               </h1>
               <div className="flex gap-3">
                 <button
-                  onClick={() => setViewMode('saved')}
+                  onClick={async () => {
+                    console.log('Saved Comparisons button clicked');
+                    await loadSavedComparisons();
+                    setViewMode('saved');
+                  }}
                   className="px-4 py-2 rounded-lg transition-colors text-sm font-semibold"
                   style={{
                     backgroundColor: isDark ? 'rgba(26, 38, 30, 0.8)' : 'var(--bg-card)',
@@ -428,31 +446,39 @@ export default function Compare() {
                       backgroundColor: isDark ? 'rgba(26, 38, 30, 0.8)' : 'var(--bg-card)',
                       border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.3)' : 'rgba(45, 122, 79, 0.3)'}`
                     }}
-                    onClick={() => handleLoadSavedComparison(comparison.id)}
+                    onClick={() => handleLoadSavedComparison(comparison)}
                   >
                     <h3 className="text-xl font-bold mb-4" style={{ color: 'var(--primary-green)' }}>
-                      {comparison.comparison_name || 'Unnamed Comparison'}
+                      {comparison.comparison_name}
                     </h3>
                     <div className="space-y-3 text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
                       <div className="p-3 rounded" style={{ backgroundColor: isDark ? 'rgba(16, 185, 129, 0.1)' : 'rgba(45, 122, 79, 0.1)' }}>
-                        <div className="font-semibold mb-1" style={{ color: 'var(--primary-green)' }}>Policy 1</div>
-                        <div>{comparison.policy_1_name}</div>
-                        <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>{comparison.country_1}</div>
+                        <div className="font-semibold mb-2" style={{ color: 'var(--primary-green)' }}>Policy 1: {comparison.policy_1_name}</div>
+                        <div className="space-y-1 text-xs">
+                          <div><span className="font-medium">Country:</span> {comparison.policy_1_input?.country || 'N/A'}</div>
+                          <div><span className="font-medium">Type:</span> {comparison.policy_1_input?.policy_type || 'N/A'}</div>
+                          <div><span className="font-medium">Price:</span> ${comparison.policy_1_input?.carbon_price_usd || 0}/tonne</div>
+                          <div><span className="font-medium">Coverage:</span> {comparison.policy_1_input?.coverage_percent || 0}%</div>
+                        </div>
                       </div>
                       <div className="p-3 rounded" style={{ backgroundColor: isDark ? 'rgba(16, 185, 129, 0.1)' : 'rgba(45, 122, 79, 0.1)' }}>
-                        <div className="font-semibold mb-1" style={{ color: 'var(--primary-green)' }}>Policy 2</div>
-                        <div>{comparison.policy_2_name}</div>
-                        <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>{comparison.country_2}</div>
+                        <div className="font-semibold mb-2" style={{ color: 'var(--primary-green)' }}>Policy 2: {comparison.policy_2_name}</div>
+                        <div className="space-y-1 text-xs">
+                          <div><span className="font-medium">Country:</span> {comparison.policy_2_input?.country || 'N/A'}</div>
+                          <div><span className="font-medium">Type:</span> {comparison.policy_2_input?.policy_type || 'N/A'}</div>
+                          <div><span className="font-medium">Price:</span> ${comparison.policy_2_input?.carbon_price_usd || 0}/tonne</div>
+                          <div><span className="font-medium">Coverage:</span> {comparison.policy_2_input?.coverage_percent || 0}%</div>
+                        </div>
                       </div>
                       <div className="text-xs pt-2" style={{ color: 'var(--text-tertiary)' }}>
-                        {new Date(comparison.created_at).toLocaleDateString()}
+                        {comparison.created_at ? new Date(comparison.created_at).toLocaleDateString() : 'N/A'}
                       </div>
                     </div>
                     <div className="flex gap-2 mt-4">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleLoadSavedComparison(comparison.id);
+                          handleLoadSavedComparison(comparison);
                         }}
                         className="flex-1 px-3 py-2 rounded text-sm font-semibold transition-colors"
                         style={{
@@ -471,9 +497,11 @@ export default function Compare() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (window.confirm('Are you sure you want to delete this comparison?')) {
-                            handleDeleteComparison(comparison.id);
-                          }
+                          setDeleteConfirmModal({
+                            show: true,
+                            comparisonId: comparison.id,
+                            comparisonName: comparison.comparison_name
+                          });
                         }}
                         className="px-3 py-2 rounded text-sm font-semibold transition-colors"
                         style={{
@@ -505,6 +533,87 @@ export default function Compare() {
           />
         )}
       </div>
+
+      {deleteConfirmModal.show && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.7)' }}
+          onClick={() => setDeleteConfirmModal({ show: false, comparisonId: null, comparisonName: '' })}
+        >
+          <div
+            className="rounded-xl p-6 max-w-md w-full shadow-2xl"
+            style={{
+              backgroundColor: isDark ? 'rgba(26, 38, 30, 0.95)' : 'var(--bg-card)',
+              border: `2px solid ${isDark ? 'rgba(239, 68, 68, 0.3)' : 'rgba(220, 38, 38, 0.3)'}`
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div
+                className="w-12 h-12 rounded-full flex items-center justify-center"
+                style={{
+                  backgroundColor: isDark ? 'rgba(239, 68, 68, 0.2)' : 'rgba(220, 38, 38, 0.2)'
+                }}
+              >
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke={isDark ? '#FCA5A5' : '#DC2626'}
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
+                Delete Comparison
+              </h3>
+            </div>
+            <p className="mb-6" style={{ color: 'var(--text-secondary)' }}>
+              Are you sure you want to delete <span className="font-semibold" style={{ color: 'var(--primary-green)' }}>"{deleteConfirmModal.comparisonName}"</span>? This action cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteConfirmModal({ show: false, comparisonId: null, comparisonName: '' })}
+                className="flex-1 px-4 py-2 rounded-lg transition-colors font-semibold"
+                style={{
+                  backgroundColor: isDark ? 'rgba(26, 38, 30, 0.8)' : 'var(--bg-secondary)',
+                  border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.3)' : 'rgba(45, 122, 79, 0.3)'}`,
+                  color: 'var(--text-primary)'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = isDark ? 'rgba(16, 185, 129, 0.1)' : 'rgba(45, 122, 79, 0.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = isDark ? 'rgba(26, 38, 30, 0.8)' : 'var(--bg-secondary)';
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteComparison}
+                className="flex-1 px-4 py-2 rounded-lg transition-colors font-semibold"
+                style={{
+                  backgroundColor: isDark ? '#DC2626' : '#DC2626',
+                  color: '#FFFFFF'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = isDark ? '#B91C1C' : '#B91C1C';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = '#DC2626';
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes rotateEarth {

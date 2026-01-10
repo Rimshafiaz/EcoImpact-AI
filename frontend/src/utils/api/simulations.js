@@ -148,26 +148,37 @@ export const compareSimulations = async (options) => {
 };
 
 export const saveComparison = async (comparisonData, comparisonName = null) => {
-  // Convert IDs to integers or null, handle both number and string IDs
-  const sim1Id = comparisonData.simulation_1?.id;
-  const sim2Id = comparisonData.simulation_2?.id;
-  
-  // Helper to safely convert to int or null
-  const toIntOrNull = (value) => {
-    if (value === null || value === undefined || value === '') return null;
-    const parsed = parseInt(value, 10);
-    return isNaN(parsed) ? null : parsed;
+  const getInputParams = (sim) => {
+    if (!sim) return {};
+    
+    const input = sim.input || sim.input_params || {};
+    
+    return {
+      country: input.country || '',
+      policy_type: input.policy_type || '',
+      carbon_price_usd: input.carbon_price_usd ? parseFloat(input.carbon_price_usd) : 0,
+      coverage_percent: input.coverage_percent ? parseFloat(input.coverage_percent) : 0,
+      year: input.year ? parseInt(input.year) : 2025,
+      projection_years: input.projection_years ? parseInt(input.projection_years) : 5
+    };
   };
+  
+  const policy_1_input = getInputParams(comparisonData.simulation_1);
+  const policy_2_input = getInputParams(comparisonData.simulation_2);
+  
+  if (!policy_1_input.country || !policy_1_input.policy_type) {
+    throw new Error('Invalid policy 1 data');
+  }
+  
+  if (!policy_2_input.country || !policy_2_input.policy_type) {
+    throw new Error('Invalid policy 2 data');
+  }
   
   const requestBody = {
     comparison_name: comparisonName || null,
-    simulation_1_data: comparisonData.simulation_1 || {},
-    simulation_2_data: comparisonData.simulation_2 || {},
-    simulation_1_id: toIntOrNull(sim1Id),
-    simulation_2_id: toIntOrNull(sim2Id)
+    policy_1_input: policy_1_input,
+    policy_2_input: policy_2_input
   };
-
-  console.log('Saving comparison request body:', requestBody);
 
   try {
     const response = await fetch(`${API_BASE_URL}/simulations/comparisons`, {
@@ -175,10 +186,20 @@ export const saveComparison = async (comparisonData, comparisonName = null) => {
       headers: getAuthHeaders(),
       body: JSON.stringify(requestBody)
     });
-    return await handleResponse(response);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Save comparison failed:', response.status, errorText);
+      throw new Error(`Failed to save comparison: ${response.status} ${errorText}`);
+    }
+    
+    const result = await handleResponse(response);
+    console.log('Save comparison response:', result);
+    return result;
   } catch (error) {
+    console.error('Error in saveComparison:', error);
     if (error.response) throw error;
-    throw new Error('Network error. Please check your connection and try again.');
+    throw new Error(error.message || 'Network error. Please check your connection and try again.');
   }
 };
 

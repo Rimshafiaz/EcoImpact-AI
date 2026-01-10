@@ -88,12 +88,12 @@ class SaveComparisonRequest(BaseModel):
 
 class ComparisonSummary(BaseModel):
     id: int
-    comparison_name: Optional[str]
+    comparison_name: str
     created_at: datetime
+    policy_1_input: dict  # Just input parameters
+    policy_2_input: dict  # Just input parameters
     policy_1_name: str
     policy_2_name: str
-    country_1: str
-    country_2: str
     
     class Config:
         from_attributes = True

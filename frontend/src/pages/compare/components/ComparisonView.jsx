@@ -19,15 +19,25 @@ export default function ComparisonView({ comparisonData, onBack, onSaved }) {
   const handleSaveComparison = async () => {
     try {
       setSaving(true);
-      console.log('Saving comparison with data:', comparisonData);
+      console.log('=== SAVING COMPARISON ===');
+      console.log('comparisonData:', comparisonData);
+      
+      if (!comparisonData || !comparisonData.simulation_1 || !comparisonData.simulation_2) {
+        throw new Error('Missing comparison data');
+      }
+      
       const result = await saveComparison(comparisonData);
-      console.log('Comparison saved successfully:', result);
+      console.log('=== SAVE SUCCESS ===', result);
       showSuccess('Comparison saved successfully!', 2000);
+      
+      // Reload the list immediately
       if (onSaved) {
-        onSaved();
+        console.log('Calling onSaved callback...');
+        await onSaved();
+        console.log('onSaved callback completed');
       }
     } catch (error) {
-      console.error('Error saving comparison:', error);
+      console.error('=== SAVE ERROR ===', error);
       showError(extractErrorMessage(error));
     } finally {
       setSaving(false);

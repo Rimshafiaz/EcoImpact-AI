@@ -1986,7 +1986,7 @@ select:focus {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1rem 1rem 3rem;
+  padding: 6rem 1rem 3rem;
   transition: background-color 0.3s ease;
   position: relative;
   overflow: hidden;

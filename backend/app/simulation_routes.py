@@ -378,12 +378,12 @@ def get_user_simulations(
             "Unable to load your simulations due to a database connection issue. Please try again in a moment.",
             service="database"
         )
-    
+
     summaries = []
     for sim in simulations:
         input_params = sim.input_params
         results = sim.results
-        
+
         summaries.append(SimulationSummary(
             id=sim.id,
             policy_name=sim.policy_name,
@@ -395,8 +395,344 @@ def get_user_simulations(
             revenue_million=results.get("revenue_million", 0),
             risk_category=results.get("risk_category", "Unknown")
         ))
-    
+
     return summaries
+
+@router.post("/compare")
+def compare_simulations(
+    body: dict = Body(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    from pydantic import ValidationError
+
+    simulation_1 = None
+    simulation_2 = None
+
+    def convert_id(id_value):
+        if id_value is None:
+            return None
+        if id_value == '' or id_value == 'null' or id_value == 'undefined':
+            return None
+        if isinstance(id_value, int):
+            return id_value
+        if isinstance(id_value, float):
+            return int(id_value)
+        if isinstance(id_value, str):
+            try:
+                return int(id_value)
+            except (ValueError, TypeError):
+                return None
+        return None
+
+    sim_id_1_raw = body.get('simulation_id_1')
+    sim_id_2_raw = body.get('simulation_id_2')
+    sim_id_1 = convert_id(sim_id_1_raw)
+    sim_id_2 = convert_id(sim_id_2_raw)
+
+    if sim_id_1:
+        try:
+            sim = db.query(Simulation).filter(
+                Simulation.id == sim_id_1,
+                Simulation.user_id == current_user.id
+            ).first()
+        except OperationalError as e:
+            db.rollback()
+            raise_service_unavailable_error(
+                "Unable to load simulation due to a database connection issue. Please try again in a moment.",
+                service="database"
+            )
+        if not sim:
+            raise_not_found_error(
+                "First simulation not found. It may have been deleted or you don't have permission to view it.",
+                resource="simulation"
+            )
+        simulation_1 = {
+            "input": sim.input_params,
+            "results": sim.results,
+            "id": sim.id,
+            "policy_name": sim.policy_name
+        }
+    elif body.get('new_simulation_1'):
+        try:
+            new_sim_1 = PredictionRequest(**body.get('new_simulation_1'))
+            results_1 = _run_prediction(new_sim_1)
+            simulation_1 = {
+                "input": new_sim_1.dict() if hasattr(new_sim_1, 'dict') else new_sim_1.model_dump() if hasattr(new_sim_1, 'model_dump') else new_sim_1,
+                "results": results_1.dict() if hasattr(results_1, 'dict') else results_1.model_dump() if hasattr(results_1, 'model_dump') else results_1,
+                "id": None,
+                "policy_name": generate_policy_name(new_sim_1.dict() if hasattr(new_sim_1, 'dict') else new_sim_1.model_dump() if hasattr(new_sim_1, 'model_dump') else {})
+            }
+        except ValidationError as e:
+            raise_validation_error(
+                "Invalid data for new simulation 1. Please check all required fields.",
+                field="new_simulation_1"
+            )
+    else:
+        raise_validation_error(
+            "Please provide either a saved simulation or create a new simulation for the first policy",
+            field="simulation_id_1"
+        )
+
+    if sim_id_2:
+        try:
+            sim = db.query(Simulation).filter(
+                Simulation.id == sim_id_2,
+                Simulation.user_id == current_user.id
+            ).first()
+        except OperationalError as e:
+            db.rollback()
+            raise_service_unavailable_error(
+                "Unable to load simulation due to a database connection issue. Please try again in a moment.",
+                service="database"
+            )
+        if not sim:
+            raise_not_found_error(
+                "Second simulation not found. It may have been deleted or you don't have permission to view it.",
+                resource="simulation"
+            )
+        simulation_2 = {
+            "input": sim.input_params,
+            "results": sim.results,
+            "id": sim.id,
+            "policy_name": sim.policy_name
+        }
+    elif body.get('new_simulation_2'):
+        try:
+            new_sim_2 = PredictionRequest(**body.get('new_simulation_2'))
+            results_2 = _run_prediction(new_sim_2)
+            simulation_2 = {
+                "input": new_sim_2.dict() if hasattr(new_sim_2, 'dict') else new_sim_2.model_dump() if hasattr(new_sim_2, 'model_dump') else new_sim_2,
+                "results": results_2.dict() if hasattr(results_2, 'dict') else results_2.model_dump() if hasattr(results_2, 'model_dump') else results_2,
+                "id": None,
+                "policy_name": generate_policy_name(new_sim_2.dict() if hasattr(new_sim_2, 'dict') else new_sim_2.model_dump() if hasattr(new_sim_2, 'model_dump') else {})
+            }
+        except ValidationError as e:
+            raise_validation_error(
+                "Invalid data for new simulation 2. Please check all required fields.",
+                field="new_simulation_2"
+            )
+    else:
+        raise_validation_error(
+            "Please provide either a saved simulation or create a new simulation for the second policy",
+            field="simulation_id_2"
+        )
+
+    return {
+        "simulation_1": simulation_1,
+        "simulation_2": simulation_2
+    }
+
+@router.post("/comparisons", status_code=status.HTTP_201_CREATED)
+def save_comparison(
+    body: dict = Body(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    comparison_name = body.get('comparison_name')
+    policy_1_input = body.get('policy_1_input', {})
+    policy_2_input = body.get('policy_2_input', {})
+
+    if not isinstance(policy_1_input, dict) or not policy_1_input:
+        raise_validation_error("policy_1_input is required and must be a valid object", field="policy_1_input")
+
+    if not isinstance(policy_2_input, dict) or not policy_2_input:
+        raise_validation_error("policy_2_input is required and must be a valid object", field="policy_2_input")
+
+    if not policy_1_input.get('country') or not policy_1_input.get('policy_type'):
+        raise_validation_error("policy_1_input must have country and policy_type", field="policy_1_input")
+
+    if not policy_2_input.get('country') or not policy_2_input.get('policy_type'):
+        raise_validation_error("policy_2_input must have country and policy_type", field="policy_2_input")
+
+    policy_1_name = f"{policy_1_input.get('policy_type', 'Policy')} - {policy_1_input.get('country', 'Unknown')}"
+    policy_2_name = f"{policy_2_input.get('policy_type', 'Policy')} - {policy_2_input.get('country', 'Unknown')}"
+
+    if not comparison_name:
+        comparison_name = f"{policy_1_name} vs {policy_2_name}"
+
+    sim1_data = {
+        'input': dict(policy_1_input),
+        'policy_name': policy_1_name
+    }
+    sim2_data = {
+        'input': dict(policy_2_input),
+        'policy_name': policy_2_name
+    }
+
+    comparison = Comparison(
+        user_id=current_user.id,
+        comparison_name=comparison_name,
+        simulation_1_id=None,
+        simulation_2_id=None,
+        simulation_1_data=sim1_data,
+        simulation_2_data=sim2_data
+    )
+
+    try:
+        db.add(comparison)
+        db.commit()
+        db.refresh(comparison)
+    except Exception as e:
+        db.rollback()
+        raise_internal_error(f"Failed to save comparison: {str(e)}")
+
+    return {
+        'id': int(comparison.id),
+        'comparison_name': comparison_name,
+        'created_at': comparison.created_at.isoformat() if comparison.created_at else None,
+        'policy_1_input': policy_1_input,
+        'policy_2_input': policy_2_input,
+        'policy_1_name': policy_1_name,
+        'policy_2_name': policy_2_name
+    }
+
+@router.get("/comparisons")
+def get_user_comparisons(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        comparisons = db.query(Comparison).filter(
+            Comparison.user_id == current_user.id
+        ).order_by(Comparison.created_at.desc()).all()
+    except OperationalError as e:
+        raise_service_unavailable_error(
+            "Unable to load comparisons due to a database connection issue. Please try again in a moment.",
+            service="database"
+        )
+
+    result = []
+    for comp in comparisons:
+        try:
+            if not comp.simulation_1_data or not comp.simulation_2_data:
+                continue
+
+            sim1_data = comp.simulation_1_data
+            sim2_data = comp.simulation_2_data
+
+            if not isinstance(sim1_data, dict) or not isinstance(sim2_data, dict):
+                continue
+
+            policy_1_input_raw = sim1_data.get('input') or sim1_data.get('input_params') or {}
+            policy_2_input_raw = sim2_data.get('input') or sim2_data.get('input_params') or {}
+
+            if not isinstance(policy_1_input_raw, dict):
+                policy_1_input_raw = {}
+            if not isinstance(policy_2_input_raw, dict):
+                policy_2_input_raw = {}
+
+            def convert_input(inp):
+                try:
+                    return {
+                        'country': str(inp.get('country', '')),
+                        'policy_type': str(inp.get('policy_type', '')),
+                        'carbon_price_usd': float(inp.get('carbon_price_usd', 0)) if inp.get('carbon_price_usd') not in [None, ''] else 0.0,
+                        'coverage_percent': float(inp.get('coverage_percent', 0)) if inp.get('coverage_percent') not in [None, ''] else 0.0,
+                        'year': int(inp.get('year', 2025)) if inp.get('year') not in [None, ''] else 2025,
+                        'projection_years': int(inp.get('projection_years', 5)) if inp.get('projection_years') not in [None, ''] else 5
+                    }
+                except (ValueError, TypeError):
+                    return {
+                        'country': '',
+                        'policy_type': '',
+                        'carbon_price_usd': 0.0,
+                        'coverage_percent': 0.0,
+                        'year': 2025,
+                        'projection_years': 5
+                    }
+
+            policy_1_input = convert_input(policy_1_input_raw)
+            policy_2_input = convert_input(policy_2_input_raw)
+
+            policy_1_name = str(sim1_data.get('policy_name') or f"{policy_1_input.get('policy_type', 'Policy')} - {policy_1_input.get('country', 'Unknown')}")
+            policy_2_name = str(sim2_data.get('policy_name') or f"{policy_2_input.get('policy_type', 'Policy')} - {policy_2_input.get('country', 'Unknown')}")
+
+            comp_id = int(comp.id) if comp.id is not None else 0
+            comp_name = str(comp.comparison_name) if comp.comparison_name else f"{policy_1_name} vs {policy_2_name}"
+
+            result.append({
+                'id': comp_id,
+                'comparison_name': comp_name,
+                'created_at': comp.created_at.isoformat() if comp.created_at else None,
+                'policy_1_input': policy_1_input,
+                'policy_2_input': policy_2_input,
+                'policy_1_name': policy_1_name,
+                'policy_2_name': policy_2_name
+            })
+        except Exception:
+            continue
+
+    return result
+
+@router.get("/comparisons/{comparison_id}", response_model=ComparisonDetail)
+def get_comparison(
+    comparison_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        comparison = db.query(Comparison).filter(
+            Comparison.id == comparison_id,
+            Comparison.user_id == current_user.id
+        ).first()
+    except OperationalError as e:
+        raise_service_unavailable_error(
+            "Unable to load comparison due to a database connection issue. Please try again in a moment.",
+            service="database"
+        )
+
+    if not comparison:
+        raise_not_found_error(
+            "Comparison not found. It may have been deleted or you don't have permission to view it.",
+            resource="comparison"
+        )
+
+    return ComparisonDetail(
+        id=int(comparison.id),
+        user_id=int(comparison.user_id),
+        comparison_name=comparison.comparison_name,
+        created_at=comparison.created_at,
+        simulation_1_id=int(comparison.simulation_1_id) if comparison.simulation_1_id else None,
+        simulation_2_id=int(comparison.simulation_2_id) if comparison.simulation_2_id else None,
+        simulation_1_data=comparison.simulation_1_data,
+        simulation_2_data=comparison.simulation_2_data
+    )
+
+@router.delete("/comparisons/{comparison_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_comparison(
+    comparison_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        comparison = db.query(Comparison).filter(
+            Comparison.id == comparison_id,
+            Comparison.user_id == current_user.id
+        ).first()
+    except OperationalError as e:
+        raise_service_unavailable_error(
+            "Unable to delete comparison due to a database connection issue. Please try again in a moment.",
+            service="database"
+        )
+
+    if not comparison:
+        raise_not_found_error(
+            "Comparison not found. It may have been deleted or you don't have permission to delete it.",
+            resource="comparison"
+        )
+
+    try:
+        db.delete(comparison)
+        db.commit()
+    except OperationalError as e:
+        db.rollback()
+        raise_service_unavailable_error(
+            "Unable to delete comparison due to a database connection issue. Please try again in a moment.",
+            service="database"
+        )
+
+    return None
 
 @router.get("/{simulation_id}", response_model=SimulationDetail)
 def get_simulation(
@@ -508,369 +844,6 @@ def delete_simulation(
         db.rollback()
         raise_service_unavailable_error(
             "Unable to delete simulation due to a database connection issue. Please try again in a moment.",
-            service="database"
-        )
-    
-    return None
-
-@router.post("/compare")
-def compare_simulations(
-    body: dict = Body(...),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    from pydantic import ValidationError
-    
-    simulation_1 = None
-    simulation_2 = None
-    
-    def convert_id(id_value):
-        if id_value is None:
-            return None
-        if id_value == '' or id_value == 'null' or id_value == 'undefined':
-            return None
-        if isinstance(id_value, int):
-            return id_value
-        if isinstance(id_value, float):
-            return int(id_value)
-        if isinstance(id_value, str):
-            try:
-                return int(id_value)
-            except (ValueError, TypeError):
-                return None
-        return None
-    
-    sim_id_1_raw = body.get('simulation_id_1')
-    sim_id_2_raw = body.get('simulation_id_2')
-    sim_id_1 = convert_id(sim_id_1_raw)
-    sim_id_2 = convert_id(sim_id_2_raw)
-    
-    # Process first simulation
-    if sim_id_1:
-        try:
-            sim = db.query(Simulation).filter(
-                Simulation.id == sim_id_1,
-                Simulation.user_id == current_user.id
-            ).first()
-        except OperationalError as e:
-            db.rollback()
-            raise_service_unavailable_error(
-                "Unable to load simulation due to a database connection issue. Please try again in a moment.",
-                service="database"
-            )
-        if not sim:
-            raise_not_found_error(
-                "First simulation not found. It may have been deleted or you don't have permission to view it.",
-                resource="simulation"
-            )
-        simulation_1 = {
-            "input": PredictionRequest(**sim.input_params),
-            "results": PredictionResponse(**sim.results),
-            "id": sim.id,
-            "policy_name": sim.policy_name
-        }
-    elif body.get('new_simulation_1'):
-        try:
-            new_sim_1 = PredictionRequest(**body.get('new_simulation_1'))
-            results_1 = _run_prediction(new_sim_1)
-            simulation_1 = {
-                "input": new_sim_1,
-                "results": results_1,
-                "id": None,
-                "policy_name": generate_policy_name(new_sim_1.dict())
-            }
-        except ValidationError as e:
-            raise_validation_error(
-                "Invalid data for new simulation 1. Please check all required fields.",
-                field="new_simulation_1"
-            )
-    else:
-        raise_validation_error(
-            "Please provide either a saved simulation or create a new simulation for the first policy",
-            field="simulation_id_1"
-        )
-    
-    if sim_id_2:
-        try:
-            sim = db.query(Simulation).filter(
-                Simulation.id == sim_id_2,
-                Simulation.user_id == current_user.id
-            ).first()
-        except OperationalError as e:
-            db.rollback()
-            raise_service_unavailable_error(
-                "Unable to load simulation due to a database connection issue. Please try again in a moment.",
-                service="database"
-            )
-        if not sim:
-            raise_not_found_error(
-                "Second simulation not found. It may have been deleted or you don't have permission to view it.",
-                resource="simulation"
-            )
-        simulation_2 = {
-            "input": PredictionRequest(**sim.input_params),
-            "results": PredictionResponse(**sim.results),
-            "id": sim.id,
-            "policy_name": sim.policy_name
-        }
-    elif body.get('new_simulation_2'):
-        try:
-            new_sim_2 = PredictionRequest(**body.get('new_simulation_2'))
-            results_2 = _run_prediction(new_sim_2)
-            simulation_2 = {
-                "input": new_sim_2,
-                "results": results_2,
-                "id": None,
-                "policy_name": generate_policy_name(new_sim_2.dict())
-            }
-        except ValidationError as e:
-            raise_validation_error(
-                "Invalid data for new simulation 2. Please check all required fields.",
-                field="new_simulation_2"
-            )
-    else:
-        raise_validation_error(
-            "Please provide either a saved simulation or create a new simulation for the second policy",
-            field="simulation_id_2"
-        )
-    
-    return {
-        "simulation_1": simulation_1,
-        "simulation_2": simulation_2
-    }
-
-@router.post("/comparisons", response_model=ComparisonDetail, status_code=status.HTTP_201_CREATED)
-def save_comparison(
-    body: dict = Body(...),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    from pydantic import ValidationError
-    
-    # Extract and convert IDs before validation
-    sim1_id_raw = body.get('simulation_1_id')
-    sim2_id_raw = body.get('simulation_2_id')
-    
-    # Convert IDs to integers or None - handle all possible input types
-    def convert_id(id_value):
-        if id_value is None:
-            return None
-        if id_value == '' or id_value == 'null' or id_value == 'undefined':
-            return None
-        if isinstance(id_value, int):
-            return id_value
-        if isinstance(id_value, float):
-            return int(id_value)
-        if isinstance(id_value, str):
-            try:
-                return int(id_value)
-            except (ValueError, TypeError):
-                return None
-        return None
-    
-    sim1_id = convert_id(sim1_id_raw)
-    sim2_id = convert_id(sim2_id_raw)
-    
-    comparison_name = body.get('comparison_name')
-    sim1_data_raw = body.get('simulation_1_data', {})
-    sim2_data_raw = body.get('simulation_2_data', {})
-    
-    # Validate required fields
-    if not isinstance(sim1_data_raw, dict):
-        raise_validation_error(
-            "simulation_1_data must be a valid object",
-            field="simulation_1_data"
-        )
-    if not isinstance(sim2_data_raw, dict):
-        raise_validation_error(
-            "simulation_2_data must be a valid object",
-            field="simulation_2_data"
-        )
-    
-    def normalize_sim_data(sim_data):
-        if not isinstance(sim_data, dict):
-            return sim_data
-        
-        if hasattr(sim_data.get('input'), 'dict'):
-            sim_data['input'] = sim_data['input'].dict()
-        elif hasattr(sim_data.get('input'), 'model_dump'):
-            sim_data['input'] = sim_data['input'].model_dump()
-        
-        if hasattr(sim_data.get('results'), 'dict'):
-            sim_data['results'] = sim_data['results'].dict()
-        elif hasattr(sim_data.get('results'), 'model_dump'):
-            sim_data['results'] = sim_data['results'].model_dump()
-        
-        if 'input_params' not in sim_data and 'input' in sim_data:
-            sim_data['input_params'] = sim_data['input']
-        
-        return sim_data
-    
-    sim1_data = normalize_sim_data(sim1_data_raw)
-    sim2_data = normalize_sim_data(sim2_data_raw)
-    
-    if not comparison_name:
-        sim1_name = sim1_data.get('policy_name') or (sim1_data.get('input', {}).get('country', 'Policy') if isinstance(sim1_data.get('input'), dict) else 'Policy 1')
-        sim2_name = sim2_data.get('policy_name') or (sim2_data.get('input', {}).get('country', 'Policy') if isinstance(sim2_data.get('input'), dict) else 'Policy 2')
-        comparison_name = f"{sim1_name} vs {sim2_name}"
-    
-    comparison = Comparison(
-        user_id=current_user.id,
-        comparison_name=comparison_name,
-        simulation_1_id=sim1_id,
-        simulation_2_id=sim2_id,
-        simulation_1_data=sim1_data,
-        simulation_2_data=sim2_data
-    )
-    
-    try:
-        db.add(comparison)
-        db.commit()
-        db.refresh(comparison)
-    except OperationalError as e:
-        db.rollback()
-        raise_service_unavailable_error(
-            "Unable to save comparison due to a database connection issue. Please try again in a moment.",
-            service="database"
-        )
-    
-    return ComparisonDetail(
-        id=int(comparison.id),
-        user_id=int(comparison.user_id),
-        comparison_name=comparison.comparison_name,
-        created_at=comparison.created_at,
-        simulation_1_id=int(comparison.simulation_1_id) if comparison.simulation_1_id else None,
-        simulation_2_id=int(comparison.simulation_2_id) if comparison.simulation_2_id else None,
-        simulation_1_data=comparison.simulation_1_data,
-        simulation_2_data=comparison.simulation_2_data
-    )
-
-@router.get("/comparisons", response_model=List[ComparisonSummary])
-def get_user_comparisons(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    import logging
-    logger = logging.getLogger(__name__)
-    
-    try:
-        comparisons = db.query(Comparison).filter(
-            Comparison.user_id == current_user.id
-        ).order_by(Comparison.created_at.desc()).all()
-        logger.info(f"Found {len(comparisons)} comparisons for user {current_user.id}")
-    except OperationalError as e:
-        raise_service_unavailable_error(
-            "Unable to load comparisons due to a database connection issue. Please try again in a moment.",
-            service="database"
-        )
-    
-    result = []
-    for comp in comparisons:
-        try:
-            if not comp.simulation_1_data or not comp.simulation_2_data:
-                continue
-            
-            sim1_data = comp.simulation_1_data
-            sim2_data = comp.simulation_2_data
-            
-            if not isinstance(sim1_data, dict) or not isinstance(sim2_data, dict):
-                continue
-            
-            sim1_input = sim1_data.get('input') or sim1_data.get('input_params') or {}
-            sim2_input = sim2_data.get('input') or sim2_data.get('input_params') or {}
-            
-            if not isinstance(sim1_input, dict):
-                sim1_input = {}
-            if not isinstance(sim2_input, dict):
-                sim2_input = {}
-            
-            policy_1_name = sim1_data.get('policy_name') or f"{sim1_input.get('policy_type', 'Policy')} - {sim1_input.get('country', 'Unknown')}"
-            policy_2_name = sim2_data.get('policy_name') or f"{sim2_input.get('policy_type', 'Policy')} - {sim2_input.get('country', 'Unknown')}"
-            
-            country_1 = sim1_input.get('country', 'N/A')
-            country_2 = sim2_input.get('country', 'N/A')
-            
-            comp_id = int(comp.id) if comp.id else 0
-            
-            result.append(ComparisonSummary(
-                id=comp_id,
-                comparison_name=comp.comparison_name,
-                created_at=comp.created_at,
-                policy_1_name=policy_1_name,
-                policy_2_name=policy_2_name,
-                country_1=country_1,
-                country_2=country_2
-            ))
-        except Exception as e:
-            logger.warning(f"Skipping comparison: {str(e)}")
-            continue
-    
-    return result
-
-@router.get("/comparisons/{comparison_id}", response_model=ComparisonDetail)
-def get_comparison(
-    comparison_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    try:
-        comparison = db.query(Comparison).filter(
-            Comparison.id == comparison_id,
-            Comparison.user_id == current_user.id
-        ).first()
-    except OperationalError as e:
-        raise_service_unavailable_error(
-            "Unable to load comparison due to a database connection issue. Please try again in a moment.",
-            service="database"
-        )
-    
-    if not comparison:
-        raise_not_found_error(
-            "Comparison not found. It may have been deleted or you don't have permission to view it.",
-            resource="comparison"
-        )
-    
-    return ComparisonDetail(
-        id=int(comparison.id),
-        user_id=int(comparison.user_id),
-        comparison_name=comparison.comparison_name,
-        created_at=comparison.created_at,
-        simulation_1_id=int(comparison.simulation_1_id) if comparison.simulation_1_id else None,
-        simulation_2_id=int(comparison.simulation_2_id) if comparison.simulation_2_id else None,
-        simulation_1_data=comparison.simulation_1_data,
-        simulation_2_data=comparison.simulation_2_data
-    )
-
-@router.delete("/comparisons/{comparison_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_comparison(
-    comparison_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    try:
-        comparison = db.query(Comparison).filter(
-            Comparison.id == comparison_id,
-            Comparison.user_id == current_user.id
-        ).first()
-    except OperationalError as e:
-        raise_service_unavailable_error(
-            "Unable to delete comparison due to a database connection issue. Please try again in a moment.",
-            service="database"
-        )
-    
-    if not comparison:
-        raise_not_found_error(
-            "Comparison not found. It may have been deleted or you don't have permission to delete it.",
-            resource="comparison"
-        )
-    
-    try:
-        db.delete(comparison)
-        db.commit()
-    except OperationalError as e:
-        db.rollback()
-        raise_service_unavailable_error(
-            "Unable to delete comparison due to a database connection issue. Please try again in a moment.",
             service="database"
         )
     
